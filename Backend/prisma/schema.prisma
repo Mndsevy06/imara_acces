@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String          @id @default(uuid())
+  name              String
+  email             String?         @unique
+  passwordHash      String?
+  role              UserRole
+  profile           UserProfile?
+  licensePlate      String?         @unique
+  cardId            String?         @unique
+  avatar            String?
+  presenceStatus    PresenceStatus  @default(OUT)
+  assignedParkingId String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  accessLogs        AccessLog[]
+  agent             Agent?
+  createdConfigs    Configuration[] @relation("ConfigCreator")
+  assignedParking   ParkingZone?    @relation("AssignedParking", fields: [assignedParkingId], references: [id])
+}
+
+model ParkingZone {
+  id              String         @id @default(uuid())
+  name            String
+  type            ParkingType
+  capacity        Int
+  currentCount    Int            @default(0)
+  configurationId String?
+  accessLogs      AccessLog[]
+  configuration   Configuration? @relation(fields: [configurationId], references: [id])
+  routingFrom     RoutingRule[]  @relation("FromParking")
+  routingTo       RoutingRule[]  @relation("ToParking")
+  assignedUsers   User[]         @relation("AssignedParking")
+}
+
+model Agent {
+  id              String         @id @default(uuid())
+  userId          String         @unique
+  portail         String
+  status          AgentStatus    @default(OFFLINE)
+  shiftStart      String
+  shiftEnd        String
+  readerId        String?
+  configurationId String?
+  accessLogs      AccessLog[]
+  configuration   Configuration? @relation(fields: [configurationId], references: [id])
+  reader          CardReader?    @relation(fields: [readerId], references: [id])
+  user            User           @relation(fields: [userId], references: [id])
+}
+
+model CardReader {
+  id              String         @id
+  label           String
+  type            CardReaderType
+  location        String
+  configurationId String?
+  accessLogs      AccessLog[]
+  agents          Agent[]
+  configuration   Configuration? @relation(fields: [configurationId], references: [id])
+}
+
+model AccessLog {
+  id               String       @id @default(uuid())
+  timestamp        DateTime     @default(now())
+  userId           String?
+  userNameSnapshot String
+  plateSnapshot    String
+  eventType        EventType
+  parkingId        String
+  status           AccessStatus
+  failReason       String?
+  agentId          String?
+  readerId         String?
+  source           ScanSource   @default(PHONE)
+  agent            Agent?       @relation(fields: [agentId], references: [id])
+  parking          ParkingZone  @relation(fields: [parkingId], references: [id])
+  reader           CardReader?  @relation(fields: [readerId], references: [id])
+  user             User?        @relation(fields: [userId], references: [id])
+}
+
+model Configuration {
+  id           String        @id @default(uuid())
+  name         String
+  description  String
+  status       ConfigStatus  @default(EDITABLE)
+  deployedAt   DateTime?
+  tilemapId    String?       @unique
+  createdAt    DateTime      @default(now())
+  creatorId    String?
+  agents       Agent[]
+  readers      CardReader[]
+  creator      User?         @relation("ConfigCreator", fields: [creatorId], references: [id])
+  tilemap      Tilemap?      @relation(fields: [tilemapId], references: [id])
+  parkingZones ParkingZone[]
+  routingRules RoutingRule[]
+}
+
+model Tilemap {
+  id            String         @id @default(uuid())
+  name          String
+  width         Int            @default(20)
+  height        Int            @default(20)
+  gridData      Json
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  configuration Configuration?
+}
+
+model RoutingRule {
+  id              String        @id @default(uuid())
+  configurationId String
+  fromParkingId   String
+  toParkingId     String
+  priority        Int           @default(1)
+  configuration   Configuration @relation(fields: [configurationId], references: [id])
+  fromParking     ParkingZone   @relation("FromParking", fields: [fromParkingId], references: [id])
+  toParking       ParkingZone   @relation("ToParking", fields: [toParkingId], references: [id])
+}
+
+model SystemSettings {
+  id                    Int     @id @default(1)
+  orgName               String  @default("Collège Imara / ECOPO")
+  supportEmail          String  @default("support@imara.cd")
+  address               String  @default("")
+  vocalGuidanceEnabled  Boolean @default(true)
+  strictCapacityControl Boolean @default(false)
+  notificationsEnabled  Boolean @default(true)
+  dailyReportsEnabled   Boolean @default(false)
+  twoFactorAuthEnabled  Boolean @default(false)
+  accentColor           String?
+}
+
+enum UserRole {
+  ADMIN
+  AGENT
+  MEMBER
+}
+
+enum UserProfile {
+  PROFESSEUR
+  ETUDIANT
+  PERSONNEL
+  DIRECTION
+  FIDELE
+}
+
+enum PresenceStatus {
+  IN
+  OUT
+}
+
+enum ParkingType {
+  PROFESSOR
+  STUDENT
+  VISITOR
+  STAFF
+  CHURCH
+}
+
+enum AgentStatus {
+  ACTIVE
+  OFFLINE
+}
+
+enum CardReaderType {
+  NFC
+  RFID
+  BOTH
+}
+
+enum EventType {
+  ENTREE
+  SORTIE
+}
+
+enum AccessStatus {
+  SUCCESS
+  FAILED
+}
+
+enum ScanSource {
+  PHONE
+  BOITIER
+}
+
+enum ConfigStatus {
+  LOCKED
+  EDITABLE
+}

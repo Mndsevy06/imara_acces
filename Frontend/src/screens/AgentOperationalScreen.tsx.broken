@@ -1,0 +1,464 @@
+  // Initialisation NFC avec Capacitor
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const timer = setTimeout(() => {
+      if (typeof window.nfc === 'undefined') {
+        console.warn('[NFC] Plugin non disponible');
+        return;
+      }
+
+      const handler = (event: any) => handleNfcScan(event);
+      nfcHandlerRef.current = handler;
+
+      window.nfc.addNdefListener(handler, () => console.log('[NFC] NDEF OK'), (err: any) => console.error('[NFC] Err:', err));
+      window.nfc.addTagDiscoveredListener(handler, () => console.log('[NFC] Tag OK'), (err: any) => console.error('[NFC] Err:', err));
+    }, 1000);
+
+    return () => {
+      clearTimeout(timer);
+      if (nfcHandlerRef.current && typeof window.nfc !== 'undefined') {
+        try {
+          window.nfc.removeTagDiscoveredListener(nfcHandlerRef.current);
+          window.nfc.removeNdefListener(nfcHandlerRef.current);
+        } catch (_) {}
+        nfcHandlerRef.current = null;
+      }
+    };
+  }, [activeTab]);
+  const handleNfcScan = (event: any) => {
+    try {
+      const tag = event.tag;
+      // Certains tags NDEF ne renvoient pas directement id sous forme de tableau...
+      if (!tag || (!tag.id && !tag.uid)) {
+        console.warn('Tag détecté mais pas d\'ID exploitable', tag);
+        return;
+      }
+      
+      const tagId = tag.id || tag.uid;
+      const cardId = window.nfc.bytesToHexString(tagId);
+      console.log('[NFC] Tag détecté ID:', cardId);
+
+      // Met à jour la variable d'état pour afficher "CARTE DÉTECTÉE !" sur l'écran pendant 2.5 secondes
+      setIsNfcDetected(true);
+      setTimeout(() => setIsNfcDetected(false), 2500);
+
+
+      if (activeTabRef.current === 'AUTO') {
+        verifyCard(cardId);
+      } else if (activeTabRef.current === 'NFC-WRITE' && isWritingRef.current) {
+        performWriteNFC(cardId);
+      } else if (activeTabRef.current === 'NFC-DELETE' && isDeletingRef.current) {
+        performDeleteNFC(cardId);
+      }
+    } catch (err) {
+      console.error('Erreur handleNfcScan:', err);
+    }
+  };
+
+  const verifyCard = async (cardId: string) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/scans/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cardId,
+          readerId: user?.agent?.readerId ?? undefined,
+          source: 'PHONE',
+        }),
+      });
+      
+      const payload = await res.json().catch(() => ({}));
+      
+      // IMPORTANT : Force le rafraîchissement d'animation pour des requêtes "PHONE" locales !
+      setScanPulseKey(prev => prev + 1);
+      
+      // Update the local state directly without waiting for a socket event!
+      setScanStatus(payload.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED');
+      
+      // Assurer que le nouveau scan a bien un ID pour React key s'il vient de fail
+      const scanData = payload.log || payload;
+      if (!scanData.id) scanData.id = `local-${Date.now()}`;
+      
+      setCurrentScan(scanData);
+      
+      if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
+      displayTimerRef.current = setTimeout(() => {
+        setScanStatus('WAITING');
+        setCurrentScan(null);
+      }, 5000);
+      
+      if (!res.ok) {
+        console.error('[verifyCard] Erreur serveur:', res.status, payload); alert('Erreur serveur: ' + res.status);
+      }
+    } catch (e) {
+      console.error('[verifyCard] Erreur réseau — backend accessible ?', e);
+      setScanPulseKey(prev => prev + 1);
+      setScanStatus('FAILED');
+      setCurrentScan({ id: `err-${Date.now()}`, failReason: 'Serveur injoignable' });
+      if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
+      displayTimerRef.current = setTimeout(() => { setScanStatus('WAITING'); setCurrentScan(null); }, 5000);
+    }
+  };
+
+  const performWriteNFC = async (cardId: string) => {
+    if (!visitorPlate) return;
+    
+    try {
+      // 1. On enregistre en BDD
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/visitors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          name: visitorName || 'Adhérent Temporaire', 
+          licensePlate: visitorPlate, 
+          cardId: cardId 
+        })
+      });
+
+      if (res.ok) {
+        // 2. On écrit sur le tag NFC (NDEF) — tag doit encore être en contact
+        const message = [
+          window.ndef.textRecord(`IMARA:${visitorPlate}`),
+          window.ndef.textRecord(visitorName || 'Adhérent')
+        ];
+
+        await new Promise<void>((resolve, reject) => {
+          window.nfc.write(message, resolve, reject);
+        });
+        alert(`Adhérent avec la plaque ${visitorPlate} enregistré avec succès !`);
+        setVisitorName('');
+        setVisitorPlate('');
+        setIsWriting(false);
+      } else {
+        alert('Erreur lors de l\'enregistrement en base de données');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erreur technique lors de l\'écriture');
+    }
+  };
+
+  const performDeleteNFC = async (cardId: string) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/visitors`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardId })
+      });
+      if (res.ok) {
+        alert('Carte libérée avec succès');
+        setIsDeleting(false);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erreur lors de la libération');
+    }
+  };
+
+  // Simuler un scan (pour le test sur PC)
+  const simulateScan = async (type: 'SUCCESS' | 'FAILED') => {
+    const cardId = type === 'SUCCESS' ? 'CARTE_TEST_123' : 'CARTE_INVALIDE';
+    verifyCard(cardId);
+  };
+
+  return (
+    <div className="relative h-screen bg-bg-primary flex flex-col overflow-hidden max-w-md mx-auto border-x border-border shadow-2xl">
+      {/* Toast notification scan hors onglet AUTO */}
+      <AnimatePresence>
+        {toastScan && (
+          <motion.div
+            initial={{ y: -80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -80, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            className={cn(
+              'absolute top-0 left-0 right-0 z-50 mx-auto max-w-md px-4 pt-3 pb-2',
+            )}
+          >
+            <div
+              className={cn(
+                'flex items-center gap-3 rounded-2xl px-4 py-3 shadow-xl border',
+                toastScan.status === 'SUCCESS'
+                  ? 'bg-success text-white border-success'
+                  : toastScan.scan?.failReason === 'Carte non reconnue'
+                  ? 'bg-danger text-white border-danger'
+                  : 'bg-danger text-white border-danger',
+              )}
+            >
+              {toastScan.status === 'SUCCESS' ? (
+                <CheckCircle2 size={22} className="shrink-0" />
+              ) : (
+                <XCircle size={22} className="shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-sm uppercase tracking-tight">
+                  {toastScan.status === 'SUCCESS'
+                    ? (toastScan.scan?.eventType === 'ENTREE' ? 'Entrée validée' : 'Sortie validée')
+                    : toastScan.scan?.failReason === 'Carte non reconnue'
+                    ? 'Carte inconnue'
+                    : 'Accès refusé'}
+                </p>
+                <p className="text-xs font-medium opacity-90 truncate">
+                  {toastScan.status === 'SUCCESS'
+                    ? toastScan.scan?.userNameSnapshot
+                    : toastScan.scan?.failReason || 'Badge non valide'}
+                </p>
+              </div>
+              <p className="text-[10px] font-bold opacity-75 uppercase shrink-0">
+                {toastScan.scan?.source === 'BOITIER' ? 'Boîtier' : 'Téléphone'}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
+      <header className="bg-bg-secondary p-5 border-b border-border flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-accent-primary/10 text-accent-primary rounded-xl flex items-center justify-center">
+            <ShieldCheck size={20} />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-text-muted uppercase tracking-wider">Agent en service</p>
+            <p className="font-bold text-sm truncate">{user?.name || 'Agent Mobile'}</p>
+          </div>
+          <div className={cn(
+            'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
+            isConnected ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+          )}>
+            {isConnected ? <Wifi size={10} /> : <WifiOff size={10} />}
+            {isConnected ? 'En ligne' : 'Hors ligne'}
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right flex flex-col items-end">
+            <div className="flex items-center gap-1.5 text-accent-primary font-mono font-bold text-sm">
+              <Clock size={14} />
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+            <p className="text-[10px] text-success font-bold uppercase tracking-widest">Portail Imara</p>
+          </div>
+          <button onClick={() => navigate('/')} className="p-2 text-text-muted hover:text-danger">
+            <LogOut size={20} />
+          </button>
+        </div>
+      </header>
+
+      {/* Main Status Indicator */}
+      <div className="flex-1 overflow-y-auto flex flex-col">
+        <div className="p-6 flex flex-col items-center justify-center min-h-[300px] gap-6 text-center">
+          <AnimatePresence mode="wait">
+            {scanStatus === 'WAITING' ? (
+              <motion.div
+                key="waiting"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.2 }}
+                className="space-y-6"
+              >
+                <div className="relative">
+                  <div className="absolute inset-0 bg-accent-primary/20 rounded-full animate-ping" />
+                  <div className={cn(
+                    'relative w-40 h-40 rounded-full border-4 border-dashed flex items-center justify-center transition-colors duration-300',
+                    isNfcDetected ? 'border-success bg-success/10' : 'border-accent-primary'
+                  )}>
+                    {isNfcDetected ? (
+                      <CheckCircle2 size={48} className="text-success" />
+                    ) : isWriting || isDeleting ? (
+                      <Nfc size={48} className="text-accent-primary animate-pulse" />
+                    ) : (
+                      <Loader2 size={48} className="text-accent-primary animate-spin" />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">
+                    {isWriting ? 'Approchez la carte...' : isDeleting ? 'Approchez pour effacer...' : 'En attente de scan...'}
+                  </h2>
+                  <p className="text-text-secondary">
+                    {isWriting ? 'Pr�t pour l\'�criture de l\'adh�rent' : 'Pr�t pour la d�tection au portail'}
+                  </p>
+                </div>
+                {!Capacitor.isNativePlatform() && (
+                   <div className="flex gap-2 justify-center">
+                     <Button size="sm" variant="outline" onClick={() => simulateScan('SUCCESS')}>Simul Succès</Button>
+                     <Button size="sm" variant="outline" onClick={() => simulateScan('FAILED')}>Simul Échec</Button>
+                   </div>
+                )}
+              </motion.div>
+            ) : scanStatus === 'SUCCESS' ? (
+              <motion.div
+                key={`success-${currentScan?.id}-${scanPulseKey}`}
+                initial={{ opacity: 0, scale: 1.2 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="space-y-6"
+              >
+                <div className="w-48 h-48 rounded-full bg-success flex items-center justify-center shadow-xl shadow-success/30">
+                  <CheckCircle2 size={96} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black text-success uppercase tracking-tighter">
+                    {currentScan?.eventType === 'ENTREE' ? 'ENTRÉE VALIDÉE' : 'SORTIE VALIDÉE'}
+                  </h2>
+                  <p className="text-text-secondary font-medium">Badge valide détecté</p>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={`failed-${currentScan?.id}-${scanPulseKey}`}
+                initial={{ opacity: 0, scale: 1.2 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="space-y-6"
+              >
+                <div className="w-48 h-48 rounded-full bg-danger flex items-center justify-center shadow-xl shadow-danger/30">
+                  <XCircle size={96} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black text-danger uppercase tracking-tighter">
+                    {currentScan?.failReason === 'Carte non reconnue' ? 'CARTE INCONNUE' : 'ACCÈS REFUSÉ'}
+                  </h2>
+                  <p className="text-text-secondary font-medium italic">
+                    {currentScan?.failReason === 'Carte non reconnue'
+                      ? 'Cette carte n\'est enregistrée dans aucun compte'
+                      : currentScan?.failReason || 'Badge non valide'}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Scan Info Detail */}
+        <AnimatePresence>
+          {scanStatus !== 'WAITING' && currentScan && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="px-6 pb-6"
+            >
+              <Card className="p-5 border-2 border-accent-primary/50 bg-accent-primary/5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Usager</p>
+                    <p className="font-bold truncate">{currentScan.userNameSnapshot}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Destination</p>
+                    <p className="font-bold truncate">{currentScan.parking?.name || 'Inconnu'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Plaque d'immatriculation</p>
+                    <p className="font-mono font-bold bg-white dark:bg-bg-secondary px-2 py-0.5 rounded border border-border truncate">{currentScan.plateSnapshot}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Status BDD</p>
+                    <p className="font-bold text-success">SYNCHRONISÉ</p>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Visitor Controls */}
+        <div className="bg-bg-secondary border-t border-border mt-auto p-6 space-y-6">
+          <div className="flex bg-bg-surface p-1 rounded-xl">
+            <button 
+              onClick={() => { setActiveTab('AUTO'); setIsWriting(false); setIsDeleting(false); }}
+              className={cn("flex-1 py-2 text-xs font-bold rounded-lg transition-all", activeTab === 'AUTO' ? "bg-white dark:bg-bg-secondary shadow-sm text-accent-primary" : "text-text-muted")}
+            >
+              SCAN AUTO
+            </button>
+            <button 
+              onClick={() => { setActiveTab('NFC-WRITE'); setIsDeleting(false); }}
+              className={cn("flex-1 py-2 text-xs font-bold rounded-lg transition-all", activeTab === 'NFC-WRITE' ? "bg-white dark:bg-bg-secondary shadow-sm text-accent-primary" : "text-text-muted")}
+            >
+              ADHÉRENT TEMP.
+            </button>
+            <button 
+              onClick={() => { setActiveTab('NFC-DELETE'); setIsWriting(false); }}
+              className={cn("flex-1 py-2 text-xs font-bold rounded-lg transition-all", activeTab === 'NFC-DELETE' ? "bg-white dark:bg-bg-secondary shadow-sm text-accent-primary" : "text-text-muted")}
+            >
+              LIBÉRER CARTE
+            </button>
+          </div>
+
+          <div className="space-y-4 min-h-[140px]">
+             {activeTab === 'AUTO' && (
+               <div className="text-center space-y-2">
+                 <div className="flex justify-center">
+                    <Nfc size={40} className="text-text-muted opacity-20" />
+                 </div>
+                 <p className="text-sm text-text-muted">Approchez une carte pour valider l'entrée ou la sortie automatiquement.</p>
+               </div>
+             )}
+
+             {activeTab === 'NFC-WRITE' && (
+               <div className="space-y-3">
+                 <div className="flex flex-col gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="Nom de l'adhérent" 
+                      value={visitorName}
+                      onChange={(e) => setVisitorName(e.target.value)}
+                      className="bg-bg-surface border border-border rounded-xl px-4 py-2 font-bold" 
+                    />
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="PLAQUE D'IMMATRICULATION" 
+                        value={visitorPlate}
+                        onChange={(e) => setVisitorPlate(e.target.value)}
+                        className="flex-1 bg-bg-surface border border-border rounded-xl px-4 font-mono font-bold" 
+                      />
+                      <Button 
+                        icon={isWriting ? Loader2 : Save} 
+                        disabled={!visitorPlate || isWriting}
+                        onClick={() => setIsWriting(true)}
+                        className={isWriting ? "animate-pulse" : ""}
+                      >
+                        {isWriting ? 'Prêt...' : 'Valider'}
+                      </Button>
+                    </div>
+                 </div>
+                 {isWriting && (
+                   <p className="text-[10px] text-accent-primary text-center font-bold animate-bounce uppercase">
+                     Touchez la carte avec le téléphone maintenant !
+                   </p>
+                 )}
+                 {!isWriting && <p className="text-[10px] text-text-muted text-center italic">Remplissez les infos puis cliquez sur Valider avant de scanner.</p>}
+               </div>
+             )}
+
+
+             {activeTab === 'NFC-DELETE' && (
+               <button 
+                 onClick={() => setIsDeleting(true)}
+                 disabled={isDeleting}
+                 className={cn(
+                   "w-full flex flex-col items-center justify-center py-6 gap-3 border border-dashed rounded-xl transition-all",
+                   isDeleting ? "bg-danger/10 border-danger animate-pulse" : "bg-danger/5 border-danger/20 hover:bg-danger/10"
+                 )}
+               >
+                 {isDeleting ? (
+                   <>
+                     <Nfc size={32} className="text-danger" />
+                     <p className="text-sm font-bold text-danger uppercase">Approchez la carte à effacer</p>
+                   </>
+                 ) : (
+                   <>
+                     <Trash2 size={32} className="text-danger" />
+                     <p className="text-sm font-bold text-danger">Cliquer pour activer la suppression</p>
+                   </>
+                 )}
+               </button>
+             )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

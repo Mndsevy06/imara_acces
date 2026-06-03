@@ -1,0 +1,6 @@
+{
+  "name": "Imara Access Control",
+  "description": "Système intelligent de gestion des flux de véhicules et des parkings pour Imara / ECOPO.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
