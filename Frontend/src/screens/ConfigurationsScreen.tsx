@@ -665,6 +665,8 @@ export function ConfigurationsScreen() {
                                             type="button" 
                                             onClick={() => handleDeleteParking(parking.id)}
                                             className="p-2 text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                                            title="Supprimer"
+                                            aria-label="Supprimer le parking"
                                           >
                                             <Trash2 size={16} />
                                           </button>

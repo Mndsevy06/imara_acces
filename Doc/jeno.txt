@@ -1,0 +1,120 @@
+# Fonctionnement de l'Étape de Présence et Interconnexion des Systèmes
+
+### 1. L'Interconnexion entre les 3 Piliers (L'ESP32, le Backend et Capacitor)
+
+Il faut imaginer cette architecture comme un restaurant, où chaque élément a un rôle très précis qui communique via le réseau Wi-Fi local :
+
+*   **Le Cerveau central (Le Backend sur PC Windows) :** C'est le serveur (Node.js/PostgreSQL) qui tourne sur le PC. Il possède une **adresse IP Fixe** (très important pour que les autres le trouvent) et écoute sur le port `8012`. C'est lui qui contient la base de données (les badges valides, le nombre de places restantes, etc.).
+*   **Les Yeux et les Bras (L'ESP32 au portail) :** C'est le boîtier physique (IoT) équipé du lecteur de badge (RFID/NFC) et connecté à la barrière et aux LEDs (Rouge/Verte). Son seul but est de lire un badge, de l'envoyer au "Cerveau" (Backend) via le Wi-Fi, et d'attendre l'ordre pour ouvrir ou non.
+*   **Les Moniteurs (Les applications mobiles Capacitor) :**
+    *   **Pour l'Agent :** Son téléphone est connecté au Cerveau. Quand l'ESP32 lit un badge, le Cerveau notifie instantanément le téléphone de l'agent qui affiche l'identité de la personne et si c'est bon ou refusé.
+    *   **Pour le Conducteur (Usager) :** Son application écoute aussi le Cerveau. Dès que le scan est validé, l'application reçoit l'ordre d'afficher la carte et de lancer le guidage vocal vers sa place.
+
+---
+
+### 2. Le Déroulement de l'Étape de "Présence" (Le Scan)
+
+Voici exactement ce qui se passe (en une fraction de seconde) lorsqu'un véhicule se présente :
+
+1.  Le conducteur approche son badge (ou son téléphone NFC) du lecteur de l'ESP32.
+2.  L'ESP32 capte l'ID du badge et l'envoie via une requête au Backend sur le PC.
+3.  Le Backend regarde dans sa table `User` et analyse **3 choses** :
+    *   *Qui est-ce ?*
+    *   *Est-ce qu'il est déjà censé être à l'intérieur ?* (Anti-passback).
+    *   *Reste-t-il de la place dans son parking attitré ?* (Vérification de la `capacity` et du `currentCount`).
+4.  Le Backend prend sa décision et renvoie la réponse à l'ESP32 (pour la barrière et les LEDs) ET aux applications Capacitor (Agent et Conducteur).
+
+---
+
+### 3. QUAND est-ce que la barrière S'OUVRE ? (LED Verte)
+
+Pour que l'ESP32 reçoive l'ordre d'allumer la **LED Verte** et d'**ouvrir la barrière**, il faut que **TOUTES** ces conditions soient réunies :
+
+✅ **Condition 1 : Le badge est valide.**
+Il existe dans la base de données et appartient à un compte actif (Professeur, Étudiant, etc.).
+
+✅ **Condition 2 : La règle "Anti-Passback" est respectée.**
+Le système vérifie la colonne `presenceStatus` du conducteur. Elle doit être sur `OUT` (Dehors). Cela prouve que la personne entre bien sur le site et n'a pas passé son badge à travers les grilles à un ami.
+
+✅ **Condition 3 : Il y a de la place sur le parking.**
+Ici, le système est intelligent et prévoit deux cas de figure (Routage dynamique) :
+*   **Cas A (Idéal) :** Le parking par défaut de l'utilisateur (ex: *Parking ECOPO*) n'est pas plein (`Capacité > 0`). Le Backend décrémente alors le nombre de places de 1.
+*   **Cas B (Le Fallback) :** Le parking par défaut est plein, MAIS l'Administrateur a prévu un "Parking de Secours" (ex: *Parking Visiteurs B*) dans les paramètres (`RoutingRule`), et il reste de la place dans ce dernier.
+
+**Conséquences de l'ouverture :**
+*   L'ESP32 ouvre la barrière.
+*   Le `presenceStatus` de l'utilisateur passe à `IN`.
+*   Sur l'application de l'Agent, l'écran devient Vert.
+*   Sur l'application de l'usager, un compte à rebours de **15 secondes** se lance. Si l'usager ouvre son application, la carte s'affiche et la voix lui dicte son itinéraire (ou le nouvel itinéraire si c'est le parking de secours).
+
+---
+
+### 4. QUAND est-ce que la barrière NE S'OUVRE PAS ? (LED Rouge)
+
+L'ESP32 allumera la **LED Rouge**, la barrière restera fermée, et l'accès sera refusé dans l'un de ces cas :
+
+❌ **Raison 1 : Badge Inconnu ou Illisible.**
+La carte n'est pas enregistrée dans la base de données du Backend.
+
+❌ **Raison 2 : Fraude (Violation de l'Anti-Passback).**
+Le `presenceStatus` de l'utilisateur est déjà sur `IN`. Le système considère que la personne (ou sa voiture) est déjà à l'intérieur de l'établissement. Pour pouvoir rerentrer, ce badge doit obligatoirement être scanné sur la borne de **Sortie** au préalable.
+
+❌ **Raison 3 : Saturation Totale (Tout est plein).**
+Si le paramètre `strictCapacityControl` est activé, l'accès est bloqué si :
+*   Le parking habituel est plein (Capacité = 0).
+*   **ET** qu'il n'y a aucun parking de secours de configuré (ou qu'il est lui aussi plein).
+
+**Conséquences du refus :**
+*   La barrière ne bouge pas, la LED clignote Rouge.
+*   Sur le téléphone de l'Agent de sécurité, un grand écran **Rouge** s'affiche instantanément avec le motif explicite (ex: *"Échec : Parking ECOPO et Secours saturés"* ou *"Échec : Anti-Passback déclenché"*). L'agent sait immédiatement pourquoi ça bloque sans avoir à chercher.
+
+---
+
+### 5. Les Technologies Utilisées et Leurs Rôles
+
+L'écosystème Imara Access repose sur une stack moderne et hybride, divisée en 3 grandes parties.
+
+#### A. Le Matériel & l'IoT (Le Portail)
+*   **ESP32 (Microcontrôleur avec Wi-Fi) :** C'est le module de terrain. Il écoute les badges, discute avec le serveur (Backend) via le Wi-Fi, et donne l'ordre électrique d'ouvrir la barrière et d'allumer les LEDs.
+*   **Lecteur RFID/NFC (ex: RC522 / PN532) :** Capteur physique connecté à l'ESP32 pour lire ou scanner les cartes d'accès.
+*   **Cartes NFC (ex: MiFare) :** Les badges physiques des usagers. Ils disposent d'une mémoire pour stocker certaines données.
+
+#### B. Le Backend (Le Serveur Central / PC)
+*   **Node.js / Next.js (API) :** C'est le moteur du serveur. Il exécute toute la logique de sécurité (vérification de l'anti-passback, décompte des places de parking, routage vers les parkings de secours). Il tourne sur le PC Windows (Port 8012).
+*   **PostgreSQL :** La base de données relationnelle. Elle stocke les profils des utilisateurs, l'état des parkings, la matrice de la carte (Tilemap) et l'historique complet (Logs) des entrées/sorties.
+*   **Réseau Local (IP Fixe) :** L'infrastructure réseau. Le PC fait office de serveur central en réseau local et doit obligatoirement avoir une adresse IP fixe pour être "trouvable" par l'ESP32 et les téléphones.
+
+#### C. Le Frontend & Mobile (Les Interfaces Utilisateurs)
+*   **React (Vite.js) :** Utilisé pour construire les interfaces graphiques fluides (Dashboard Administrateur, Écran Vert/Rouge de l'Agent, Carte interactive de l'Usager).
+*   **Capacitor :** La technologie clé pour le mobile. Elle permet de transformer le site web React en une véritable application Android native pour les smartphones des Agents et des Usagers.
+*   **Plugin Capacitor NFC :** Il permet à l'application de l'Agent d'utiliser la puce NFC de son propre smartphone pour créer, écrire et effacer les badges temporaires destinés aux visiteurs directement sur le terrain.
+
+---
+
+### 6. Programmation de l'ESP32 et Gestion du Temps (Délais et Doublons)
+
+#### A. Langage de l'ESP32
+Le boîtier ESP32 est programmé en **C++** (généralement via l'environnement **Arduino IDE** ou **PlatformIO**). Ce langage, très proche du matériel, est parfait pour sa rapidité d'exécution. Il permet de gérer simultanément la connexion Wi-Fi, la lecture instantanée de la puce NFC, et les impulsions électriques envoyées à la barrière et aux LEDs.
+
+#### B. Gestion des Temps (Ouverture, Fermeture et Anti-Doublon)
+Pour garantir la fluidité du trafic et éviter les bugs de comptage, le code (ESP32 + Backend) utilise des chronomètres très précis :
+
+*   **Temps d'Ouverture (Le Relais) :** Lorsqu'un accès est validé (LED Verte), l'ESP32 envoie une impulsion électrique au relais de la barrière pendant environ **3 à 5 secondes**. C'est le temps nécessaire pour que le moteur de la barrière lève le bras complètement.
+*   **Temps de Fermeture :** La fermeture est souvent sécurisée par une boucle magnétique au sol (qui vérifie que la voiture est bien passée). Si aucune voiture ne passe, un délai de sécurité rabaisse la barrière au bout d'environ **10 secondes**.
+*   **Délai Anti-Doublon (Le Cooldown) :** C'est crucial pour le comptage. Si un usager laisse sa carte posée sur le lecteur, le système pourrait compter 10 entrées en 1 seconde ! Pour éviter ça, dès qu'un badge est scanné et validé, le système applique un délai de "Cooldown". Ce badge spécifique est **totalement ignoré pendant 30 à 60 secondes**. Cela garantit qu'un passage = une seule place de parking décomptée.
+*   **Délai du Guidage Mobile :** Côté Backend, un chrono de **15 secondes** démarre au moment du scan. L'usager a 15 secondes pour ouvrir son application et voir son itinéraire. Passé ce délai, l'accès à la carte expire pour s'assurer que l'application correspond bien au véhicule qui vient de passer le portail.
+
+---
+
+### 6. Programmation de l'ESP32 et Gestion du Temps (Délais et Doublons)
+
+#### A. Langage de l'ESP32
+Le boîtier ESP32 est programmé en **C++** (généralement via l'environnement **Arduino IDE** ou **PlatformIO**). Ce langage, très proche du matériel, est parfait pour sa rapidité d'exécution. Il permet de gérer simultanément la connexion Wi-Fi, la lecture instantanée de la puce NFC, et les impulsions électriques envoyées à la barrière et aux LEDs.
+
+#### B. Gestion des Temps (Ouverture, Fermeture et Anti-Doublon)
+Pour garantir la fluidité du trafic et éviter les bugs de comptage, le code (ESP32 + Backend) utilise des chronomètres très précis :
+
+*   **Temps d'Ouverture (Le Relais) :** Lorsqu'un accès est validé (LED Verte), l'ESP32 envoie une impulsion électrique au relais de la barrière pendant environ **3 à 5 secondes**. C'est le temps nécessaire pour que le moteur de la barrière lève le bras complètement.
+*   **Temps de Fermeture :** La fermeture est souvent sécurisée par une boucle magnétique au sol (qui vérifie que la voiture est bien passée). Si aucune voiture ne passe, un délai de sécurité rabaisse la barrière au bout d'environ **10 secondes**.
+*   **Délai Anti-Doublon (Le Cooldown) :** C'est crucial pour le comptage. Si un usager laisse sa carte posée sur le lecteur, le système pourrait compter 10 entrées en 1 seconde ! Pour éviter ça, dès qu'un badge est scanné et validé, le système applique un délai de "Cooldown". Ce badge spécifique est **totalement ignoré pendant 30 à 60 secondes**. Cela garantit qu'un passage = une seule place de parking décomptée.
+*   **Délai du Guidage Mobile :** Côté Backend, un chrono de **15 secondes** démarre au moment du scan. L'usager a 15 secondes pour ouvrir son application et voir son itinéraire. Passé ce délai, l'accès à la carte expire pour s'assurer que l'application correspond bien au véhicule qui vient de passer le portail.

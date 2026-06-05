@@ -94,6 +94,9 @@ interface InputProps {
   onChange?: (e: any) => void;
   required?: boolean;
   disabled?: boolean;
+  min?: string | number;
+  max?: string | number;
+  step?: string | number;
 }
 
 export function Input({ label, icon: Icon, error, className, ...props }: InputProps) {
