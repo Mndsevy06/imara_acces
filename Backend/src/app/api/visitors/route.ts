@@ -144,20 +144,76 @@ export async function DELETE(req: Request) {
     const { cardId: rawCardId } = await req.json();
     const cardId = rawCardId ? normalizeCardId(rawCardId) : '';
     const candidates = rawCardId ? cardIdCandidates(rawCardId) : [];
+    
     if (!cardId) {
       return NextResponse.json({ error: 'cardId requis' }, { status: 400 });
     }
 
-    // Retirer la carte à l'utilisateur
-    await db.user.updateMany({
+    // 1. Trouver l'utilisateur actuel qui possède cette carte
+    const userToRelease = await db.user.findFirst({
       where: { OR: candidates.map((value) => ({ cardId: value })) },
-      data: { cardId: null }
     });
 
-    return NextResponse.json({ message: 'Carte réinitialisée et libérée avec succès' }, { status: 200 });
+    if (!userToRelease) {
+      return NextResponse.json({ message: 'Carte déjà libre' }, { status: 200 });
+    }
+
+    const isInside = userToRelease.presenceStatus === 'IN';
+    const parkingId = userToRelease.assignedParkingId;
+
+    const queries: any[] = [];
+
+    // 2. Libérer la place de parking
+    if (isInside && parkingId) {
+      queries.push(
+        db.parkingZone.update({
+          where: { id: parkingId },
+          data: { currentCount: { decrement: 1 } },
+        })
+      );
+    }
+
+    // 3. Mettre à jour l'utilisateur (retrait de carte et passage à OUT)
+    queries.push(
+      db.user.update({
+        where: { id: userToRelease.id },
+        data: { 
+          cardId: null,
+          presenceStatus: 'OUT'
+        }
+      })
+    );
+
+    // 4. Créer le log de sortie
+    if (isInside && parkingId) {
+      queries.push(
+        db.accessLog.create({
+          data: {
+            userId: userToRelease.id,
+            userNameSnapshot: userToRelease.name || 'Inconnu',
+            plateSnapshot: userToRelease.licensePlate || 'Inconnue',
+            eventType: 'SORTIE',
+            status: 'SUCCESS',
+            parkingId: parkingId,
+            source: 'PHONE',
+          },
+          include: { parking: true, user: true }
+        })
+      );
+    }
+
+    const results = await db.$transaction(queries);
+
+    // 5. Émettre l'événement temps réel si une sortie a été enregistrée
+    if (isInside && parkingId) {
+      const exitLog = results[results.length - 1]; // Le log est la dernière requête
+      socketService.emit('scan:new', exitLog);
+    }
+
+    return NextResponse.json({ message: 'Carte réinitialisée, sortie enregistrée et place libérée' }, { status: 200 });
   } catch (error: any) {
     console.error('Erreur libération carte:', error);
-    return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
+    return NextResponse.json({ error: 'Erreur interne lors de la libération' }, { status: 500 });
   }
 }
 
