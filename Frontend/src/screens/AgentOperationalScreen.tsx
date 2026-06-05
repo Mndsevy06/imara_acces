@@ -24,7 +24,7 @@ import { CapacitorNfc } from '@capgo/capacitor-nfc';
 export function AgentOperationalScreen() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { isConnected } = useSocketStore();
+  const { isConnected, scans } = useSocketStore();
 
   const [scanStatus, setScanStatus] = useState<'WAITING' | 'SUCCESS' | 'FAILED'>('WAITING');
   const [activeTab, setActiveTab] = useState<'AUTO' | 'NFC-WRITE' | 'NFC-DELETE'>('AUTO');
@@ -36,6 +36,8 @@ export function AgentOperationalScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [visitorName, setVisitorName] = useState('');
   const [visitorPlate, setVisitorPlate] = useState('');
+  const [parkings, setParkings] = useState<any[]>([]);
+  const [selectedParkingId, setSelectedParkingId] = useState('');
   const [toast, setToast] = useState<{ status: 'SUCCESS' | 'ERROR'; message: string } | null>(null);
   // 'INIT' = waiting for deviceready, 'READY' = NFC listeners active, 'UNAVAILABLE' = NFC not found
   const [nfcStatus, setNfcStatus] = useState<'INIT' | 'READY' | 'UNAVAILABLE'>('INIT');
@@ -45,12 +47,29 @@ export function AgentOperationalScreen() {
   const activeTabRef = useRef(activeTab);
   const isWritingRef = useRef(isWriting);
   const isDeletingRef = useRef(isDeleting);
+  const visitorNameRef = useRef(visitorName);
+  const visitorPlateRef = useRef(visitorPlate);
+  const selectedParkingIdRef = useRef(selectedParkingId);
   const displayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { isWritingRef.current = isWriting; }, [isWriting]);
   useEffect(() => { isDeletingRef.current = isDeleting; }, [isDeleting]);
+  useEffect(() => { visitorNameRef.current = visitorName; }, [visitorName]);
+  useEffect(() => { visitorPlateRef.current = visitorPlate; }, [visitorPlate]);
+  useEffect(() => { selectedParkingIdRef.current = selectedParkingId; }, [selectedParkingId]);
+
+  // Fetch parkings on mount
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/parkings`)
+      .then(res => res.json())
+      .then(data => {
+        setParkings(data);
+        if (data.length > 0) setSelectedParkingId(data[0].id);
+      })
+      .catch(err => console.error('[Parkings] Fetch error:', err));
+  }, []);
 
   // Clock
   useEffect(() => {
@@ -106,6 +125,27 @@ export function AgentOperationalScreen() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── WebSocket Scan Listener ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (scans.length > 0 && activeTab === 'AUTO') {
+      const latestScan = scans[0];
+      const scanTime = new Date(latestScan.timestamp || Date.now()).getTime();
+      
+      // On ignore les vieux scans (de plus de 5 secondes)
+      if (Date.now() - scanTime < 5000) {
+        setScanPulseKey(prev => prev + 1);
+        setScanStatus(latestScan.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED');
+        setCurrentScan(latestScan);
+        
+        if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
+        displayTimerRef.current = setTimeout(() => { 
+          setScanStatus('WAITING'); 
+          setCurrentScan(null); 
+        }, 5000);
+      }
+    }
+  }, [scans, activeTab]);
 
   // ── NFC scan handler ─────────────────────────────────────────────────────────
   const handleNfcScan = (event: any) => {
@@ -193,33 +233,40 @@ export function AgentOperationalScreen() {
   };
 
   const performWriteNFC = async (cardId: string) => {
-    if (!visitorPlate) return;
+    const name = visitorNameRef.current;
+    const plate = visitorPlateRef.current;
+    const parkingId = selectedParkingIdRef.current;
+    
+    if (!plate || !parkingId) {
+      showToast('ERROR', 'Veuillez remplir la plaque et sélectionner un parking');
+      return;
+    }
     try {
-      // Encode as NDEF text payload manually
-      const encodeText = (text: string) => {
-        const langBytes = new TextEncoder().encode('en');
-        const textBytes = new TextEncoder().encode(text);
-        return [langBytes.length & 0x3f, ...Array.from(langBytes), ...Array.from(textBytes)];
-      };
-
-      await CapacitorNfc.write({
-        allowFormat: true, // Autorise le formatage si la carte est vierge (non NDEF)
-        records: [
-          { tnf: 0x01, type: [0x54], id: [], payload: encodeText(`IMARA:${visitorPlate}`) },
-          { tnf: 0x01, type: [0x54], id: [], payload: encodeText(visitorName || 'Adhérent') },
-        ]
-      });
+      // L'écriture physique est ignorée, on lie uniquement l'UID côté base de données
 
       const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/visitors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: visitorName || 'Adhérent Temporaire', licensePlate: visitorPlate, cardId }),
+        body: JSON.stringify({ name: name || 'Conducteur Temporaire', licensePlate: plate, cardId, parkingId }),
       });
 
+      const data = await res.json();
+
       setIsWriting(false);
-      setVisitorName('');
-      setVisitorPlate('');
-      showToast('SUCCESS', res.ok ? `Carte programmée : ${visitorPlate}` : 'Tag écrit — erreur base de données');
+      
+      if (res.ok) {
+        setVisitorName('');
+        setVisitorPlate('');
+        showToast('SUCCESS', `Carte programmée : ${plate}`);
+        
+        // Rafraîchir les parkings pour avoir le compte à jour
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/parkings`)
+          .then(r => r.json())
+          .then(setParkings)
+          .catch(console.error);
+      } else {
+        showToast('ERROR', data.error || 'Erreur d\'enregistrement');
+      }
     } catch (err: any) {
       console.error('[NFC] Erreur écriture :', err);
       setIsWriting(false);
@@ -229,13 +276,7 @@ export function AgentOperationalScreen() {
 
   const performDeleteNFC = async (cardId: string) => {
     try {
-      // Au lieu de .erase() qui tente parfois un formatage NDEF inutile sur NTAG216,
-      await CapacitorNfc.write({
-        allowFormat: true, // Autorise le formatage si la carte est corrompue
-        records: [
-          { tnf: 0x00, type: [], id: [], payload: [] }
-        ]
-      });
+      // On se contente d'effacer le lien en base de données, pas besoin de toucher à la carte physiquement
 
       const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/visitors`, {
         method: 'DELETE',
@@ -352,7 +393,7 @@ export function AgentOperationalScreen() {
                     {isWriting ? 'Approchez la carte...' : isDeleting ? 'Approchez pour effacer...' : 'En attente de scan...'}
                   </h2>
                   <p className="text-text-secondary">
-                    {isWriting ? "Prêt pour l'écriture de l'adhérent" : 'Prêt pour la détection au portail'}
+                    {isWriting ? "Prêt pour l'écriture du conducteur" : 'Prêt pour la détection au portail'}
                   </p>
                 </div>
                 {!Capacitor.isNativePlatform() && (
@@ -454,7 +495,7 @@ export function AgentOperationalScreen() {
               onClick={() => { setActiveTab('NFC-WRITE'); setIsDeleting(false); }}
               className={cn('flex-1 py-2 text-xs font-bold rounded-lg transition-all', activeTab === 'NFC-WRITE' ? 'bg-white dark:bg-bg-secondary shadow-sm text-accent-primary' : 'text-text-muted')}
             >
-              ADHÉRENT TEMP.
+              CONDUCTEUR TEMP.
             </button>
             <button
               onClick={() => { setActiveTab('NFC-DELETE'); setIsWriting(false); }}
@@ -495,7 +536,7 @@ export function AgentOperationalScreen() {
                 <div className="flex flex-col gap-2">
                   <input
                     type="text"
-                    placeholder="Nom de l'adhérent"
+                    placeholder="Nom du conducteur"
                     value={visitorName}
                     onChange={(e) => setVisitorName(e.target.value)}
                     className="bg-bg-surface border border-border rounded-xl px-4 py-2 font-bold"
@@ -510,12 +551,33 @@ export function AgentOperationalScreen() {
                     />
                     <Button
                       icon={isWriting ? Loader2 : Save}
-                      disabled={!visitorPlate || isWriting}
+                      disabled={!visitorPlate || !selectedParkingId || isWriting}
                       onClick={() => setIsWriting(true)}
                       className={isWriting ? 'animate-pulse' : ''}
                     >
                       {isWriting ? 'Prêt...' : 'Valider'}
                     </Button>
+                  </div>
+                  
+                  <div className="flex flex-col mt-2">
+                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1 ml-1">Destination du visiteur</label>
+                    <select
+                      value={selectedParkingId}
+                      onChange={(e) => setSelectedParkingId(e.target.value)}
+                      title="Parking de destination"
+                      aria-label="Parking de destination"
+                      className="w-full bg-bg-surface border-border border rounded-xl py-2 px-3 text-sm font-bold outline-none"
+                    >
+                      {parkings.length === 0 && <option value="">Chargement...</option>}
+                      {parkings.map(p => {
+                        const isFull = p.capacity > 0 && p.currentCount >= p.capacity;
+                        return (
+                          <option key={p.id} value={p.id} disabled={isFull}>
+                            {p.name} ({p.currentCount}/{p.capacity || '∞'}) {isFull ? '- PLEIN' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
                   </div>
                 </div>
                 {isWriting

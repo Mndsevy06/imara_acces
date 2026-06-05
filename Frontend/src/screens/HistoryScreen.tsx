@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Input } from '../components/UI';
-import { ClipboardList, Download, Filter, Calendar, Search, CheckCircle2, XCircle } from 'lucide-react';
+import { ClipboardList, Download, Filter, Calendar, Search, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useSocketStore } from '../store/useSocketStore';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export function HistoryScreen() {
   const [fetchedLogs, setFetchedLogs] = useState<any[]>([]);
+  
+  const [search, setSearch] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   
   // Ecoute du store global qui reçoit les sockets en temps réel
   const realtimeScans = useSocketStore(state => state.scans);
@@ -25,6 +32,7 @@ export function HistoryScreen() {
       status: raw.status,
       reason: raw.reason ?? raw.failReason ?? undefined,
       source: raw.source ?? 'PHONE',
+      isTemporary: raw.isTemporary || (raw.user?.profile === null && raw.user?.role === 'MEMBER') || raw.user?.name === 'Conducteur Temporaire' || raw.userNameSnapshot === 'Conducteur Temporaire'
     };
   }
 
@@ -70,22 +78,100 @@ export function HistoryScreen() {
     return combined.slice(0, 100); // Garder les 100 plus récents
   }, [fetchedLogs, realtimeScans]);
 
+  const filteredLogs = React.useMemo(() => {
+    return displayLogs.filter(log => {
+      if (search) {
+        const s = search.toLowerCase();
+        if (!log.user.toLowerCase().includes(s) && !log.plate.toLowerCase().includes(s)) return false;
+      }
+      if (dateFilter) {
+        // convert YYYY-MM-DD to DD/MM/YYYY
+        const [y, m, d] = dateFilter.split('-');
+        if (log.date !== `${d}/${m}/${y}`) return false;
+      }
+      return true;
+    });
+  }, [displayLogs, search, dateFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, dateFilter]);
+
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  
+  const paginatedLogs = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredLogs.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredLogs, currentPage]);
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text('Historique des Présences - Imara Accès', 14, 22);
+    
+    doc.setFontSize(10);
+    doc.text(`Généré le : ${new Date().toLocaleString('fr-FR')}`, 14, 30);
+    
+    if (search || dateFilter) {
+      doc.text(`Filtres actifs : ${search ? `Recherche="${search}" ` : ''}${dateFilter ? `Date="${dateFilter}"` : ''}`, 14, 36);
+    }
+    
+    const tableData = filteredLogs.map(log => [
+      log.date,
+      log.hour,
+      `${log.user} ${log.isTemporary ? '(Temp)' : ''}`,
+      log.plate,
+      log.type,
+      log.parking,
+      log.status === 'SUCCESS' ? 'Validé' : (log.reason || 'Échec'),
+      log.source === 'BOITIER' ? 'Boîtier' : 'Téléphone'
+    ]);
+    
+    autoTable(doc, {
+      startY: (search || dateFilter) ? 42 : 36,
+      head: [['Date', 'Heure', 'Utilisateur', 'Plaque', 'Type', 'Parking', 'Résultat', 'Source']],
+      body: tableData,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 245, 245] }
+    });
+    
+    doc.save(`imara_historique_${new Date().getTime()}.pdf`);
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Historique des Scans</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Historique des Présences</h2>
           <p className="text-text-secondary">Consultez et exportez les rapports d'activités en temps réel</p>
         </div>
-        <Button variant="outline" icon={Download} onClick={() => alert('Le téléchargement du rapport CSV va commencer...')}>Exporter CSV</Button>
+        <Button variant="outline" icon={Download} onClick={exportToPDF}>Exporter PDF</Button>
       </div>
 
       <Card className="p-4 bg-bg-surface/50 border-dashed">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-           <Input icon={Search} placeholder="Rechercher..." />
-           <Input icon={Calendar} type="date" />
-           <Button variant="outline" icon={Filter} className="w-full">Filtrer par parking</Button>
-           <Button variant="secondary" className="w-full">Appliquer</Button>
+           <Input 
+             icon={Search} 
+             placeholder="Rechercher nom ou plaque..." 
+             value={search}
+             onChange={(e) => setSearch(e.target.value)}
+           />
+           <Input 
+             icon={Calendar} 
+             type="date" 
+             value={dateFilter}
+             onChange={(e) => setDateFilter(e.target.value)}
+           />
+           <Button 
+             variant="outline" 
+             onClick={() => { setSearch(''); setDateFilter(''); }} 
+             className="w-full md:col-span-2 text-text-secondary"
+           >
+             Réinitialiser les filtres
+           </Button>
         </div>
       </Card>
 
@@ -104,17 +190,22 @@ export function HistoryScreen() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {displayLogs.length === 0 ? (
+              {paginatedLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-text-muted italic">Aucun scan enregistré</td>
+                  <td colSpan={7} className="p-8 text-center text-text-muted italic">Aucun scan enregistré ou correspondant aux filtres</td>
                 </tr>
               ) : (
-                displayLogs.map((log: any) => (
+                paginatedLogs.map((log: any) => (
                   <tr key={log.id} className="hover:bg-bg-surface/30 transition-colors">
                     <td className="p-4 whitespace-nowrap text-sm text-text-secondary">{log.date}</td>
                     <td className="p-4 whitespace-nowrap text-sm text-text-secondary">{log.hour}</td>
                     <td className="p-4">
-                      <p className="font-bold text-sm leading-none mb-1">{log.user}</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-bold text-sm leading-none">{log.user}</p>
+                        {log.isTemporary && (
+                          <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest">Temporaire</span>
+                        )}
+                      </div>
                       <p className="text-[10px] font-mono text-text-muted">{log.plate}</p>
                     </td>
                     <td className="p-4">
@@ -153,6 +244,48 @@ export function HistoryScreen() {
           </table>
         </div>
       </Card>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-sm text-text-muted font-medium">
+            Affichage de <span className="text-text-primary font-bold">{(currentPage - 1) * itemsPerPage + 1}</span> à <span className="text-text-primary font-bold">{Math.min(currentPage * itemsPerPage, filteredLogs.length)}</span> sur <span className="text-text-primary font-bold">{filteredLogs.length}</span> résultats
+          </p>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3"
+            >
+              <ChevronLeft size={18} />
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={cn(
+                    "w-10 h-10 rounded-xl font-bold transition-all flex items-center justify-center text-sm",
+                    currentPage === i + 1 
+                      ? "bg-accent-primary text-white shadow-lg shadow-accent-primary/20" 
+                      : "text-text-muted hover:bg-bg-surface hover:text-text-primary"
+                  )}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3"
+            >
+              <ChevronRight size={18} />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

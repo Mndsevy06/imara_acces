@@ -37,8 +37,7 @@ export function AdminLayout() {
     { label: 'Configurations', icon: Settings2, path: '/admin/configurations' },
     { label: 'Utilisateurs', icon: Users, path: '/admin/users' },
     { label: 'Agents', icon: ShieldCheck, path: '/admin/agents' },
-    { label: 'Historique', icon: ClipboardList, path: '/admin/history' },
-    { label: 'Paramètres', icon: SlidersHorizontal, path: '/admin/settings' },
+    { label: 'Présences', icon: ClipboardList, path: '/admin/history' },
   ];
 
   const [isNotifOpen, setIsNotifOpen] = React.useState(false);

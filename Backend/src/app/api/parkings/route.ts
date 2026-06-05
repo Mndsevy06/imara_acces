@@ -15,3 +15,28 @@ export async function GET() {
     return new NextResponse('Internal Error', { status: 500 });
   }
 }
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { name, type, capacity } = body;
+
+    if (!name || !type || typeof capacity !== 'number') {
+      return new NextResponse('Données invalides', { status: 400 });
+    }
+
+    const parking = await db.parkingZone.create({
+      data: {
+        name,
+        type,
+        capacity,
+        currentCount: 0,
+      },
+    });
+
+    return NextResponse.json(parking);
+  } catch (error) {
+    console.error('[PARKINGS_POST]', error);
+    return new NextResponse('Internal Error', { status: 500 });
+  }
+}

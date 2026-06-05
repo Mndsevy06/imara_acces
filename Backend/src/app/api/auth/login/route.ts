@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (user.role === 'MEMBER') {
-       return NextResponse.json({ error: 'Les adhérents n\'ont pas accès à cette plateforme' }, { status: 403 });
+        return NextResponse.json({ error: 'Les conducteurs n\'ont pas accès à cette plateforme' }, { status: 403 });
     }
 
     const token = signToken({ id: user.id, role: user.role });

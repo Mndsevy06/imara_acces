@@ -45,6 +45,7 @@ export function ConfigurationsScreen() {
   // Nouveaux états pour les lecteurs et agents
   const [readers, setReaders] = useState<CardReader[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [parkings, setParkings] = useState<any[]>([]);
   const [selectedReaderIds, setSelectedReaderIds] = useState<string[]>([]);
   const [agentAssignments, setAgentAssignments] = useState<AgentAssignmentDraft[]>([]);
   const { lastDiscoveredReaderId, clearLastDiscoveredReaderId } = useSocketStore();
@@ -58,6 +59,15 @@ export function ConfigurationsScreen() {
     type: 'NFC' as 'NFC' | 'RFID' | 'BOTH'
   });
 
+  // États pour l'ajout/modification d'un parking
+  const [showParkingModal, setShowParkingModal] = useState(false);
+  const [newParkingData, setNewParkingData] = useState({
+    id: '',
+    name: '',
+    type: 'VISITOR',
+    capacity: 0,
+  });
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -67,14 +77,16 @@ export function ConfigurationsScreen() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [configsRes, readersRes, agentsRes] = await Promise.all([
+      const [configsRes, readersRes, agentsRes, parkingsRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_BASE_URL}/configurations`),
         fetch(`${import.meta.env.VITE_API_BASE_URL}/readers`),
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/agents`)
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/agents`),
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/parkings`)
       ]);
 
       if (configsRes.ok) setConfigs(await configsRes.json());
       if (readersRes.ok) setReaders(await readersRes.json());
+      if (parkingsRes.ok) setParkings(await parkingsRes.json());
       if (agentsRes.ok) {
         const rawAgents = await agentsRes.json();
         const normalizedAgents: Agent[] = (Array.isArray(rawAgents) ? rawAgents : []).map((user: any) => ({
@@ -188,7 +200,7 @@ export function ConfigurationsScreen() {
     setShowModal(true);
   };
 
-  const steps = ['INFO', 'READERS', 'AGENTS'];
+  const steps = ['INFO', 'PARKINGS', 'READERS', 'AGENTS'];
 
   const goToNextStep = () => {
     if (activeTab === 'INFO') {
@@ -196,6 +208,12 @@ export function ConfigurationsScreen() {
         setError('Le nom de la configuration est obligatoire.');
         return;
       }
+      setError(null);
+      setActiveTab('PARKINGS');
+      return;
+    }
+
+    if (activeTab === 'PARKINGS') {
       setError(null);
       setActiveTab('READERS');
       return;
@@ -296,8 +314,53 @@ export function ConfigurationsScreen() {
     }
   };
 
+  const handleSaveParking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const isEdit = !!newParkingData.id;
+      const url = isEdit 
+        ? `${import.meta.env.VITE_API_BASE_URL}/parkings/${newParkingData.id}` 
+        : `${import.meta.env.VITE_API_BASE_URL}/parkings`;
+      const method = isEdit ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newParkingData.name,
+          type: newParkingData.type,
+          capacity: parseInt(newParkingData.capacity.toString() || '0', 10),
+        })
+      });
+
+      if (!response.ok) throw new Error('Erreur d\'enregistrement du parking');
+
+      await fetchData();
+      setShowParkingModal(false);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteParking = async (id: string) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce parking ?')) return;
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/parkings/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Erreur lors de la suppression');
+      }
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const tabs = [
     { id: 'INFO', label: 'Informations', icon: Info },
+    { id: 'PARKINGS', label: 'Parkings', icon: Building2 },
     { id: 'READERS', label: 'Lecteurs', icon: Cpu },
     { id: 'AGENTS', label: 'Agents & Horaires', icon: RouteIcon },
   ];
@@ -545,6 +608,70 @@ export function ConfigurationsScreen() {
                                       Créé le {editingConfig?.createdAt || new Date().toISOString().split('T')[0]}
                                     </p>
                                   </div>
+                                </div>
+                             </section>
+                          </motion.div>
+                         )}
+
+                        {activeTab === 'PARKINGS' && (
+                          <motion.div 
+                            key="parkings"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="space-y-8"
+                          >
+                             <section className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h4 className="text-lg font-bold">Gestion des Parkings</h4>
+                                    <p className="text-sm text-text-secondary">Définissez les zones de parking et leurs capacités pour contrôler l'accès.</p>
+                                  </div>
+                                  <Button size="sm" type="button" variant="outline" icon={Plus} onClick={() => {
+                                    setNewParkingData({ id: '', name: '', type: 'VISITOR', capacity: 0 });
+                                    setShowParkingModal(true);
+                                  }}>
+                                    Ajouter un parking
+                                  </Button>
+                                </div>
+
+                                <div className="space-y-3">
+                                  {parkings.length === 0 ? (
+                                    <p className="text-sm text-text-muted italic p-6 bg-bg-surface rounded-2xl border border-dashed border-border text-center">
+                                      Aucun parking disponible.
+                                    </p>
+                                  ) : (
+                                    parkings.map(parking => (
+                                      <div key={parking.id} className="p-4 bg-bg-surface border border-border rounded-xl flex items-center justify-between">
+                                        <div>
+                                          <p className="font-bold">{parking.name}</p>
+                                          <div className="flex gap-4 mt-1">
+                                            <span className="text-xs bg-bg-secondary px-2 py-0.5 rounded text-text-muted">Type: {parking.type}</span>
+                                            <span className="text-xs font-bold text-accent-primary">Places: {parking.capacity || 'Illimité'}</span>
+                                            <span className="text-xs font-bold text-success">Occupées: {parking.currentCount}</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <button 
+                                            type="button" 
+                                            onClick={() => {
+                                              setNewParkingData({ id: parking.id, name: parking.name, type: parking.type, capacity: parking.capacity });
+                                              setShowParkingModal(true);
+                                            }}
+                                            className="p-2 text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
+                                          >
+                                            <span className="text-sm font-bold">Modifier</span>
+                                          </button>
+                                          <button 
+                                            type="button" 
+                                            onClick={() => handleDeleteParking(parking.id)}
+                                            className="p-2 text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))
+                                  )}
                                 </div>
                              </section>
                           </motion.div>
@@ -817,6 +944,80 @@ export function ConfigurationsScreen() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modal Ajout Parking */}
+      <AnimatePresence>
+        {showParkingModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setShowParkingModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-bg-secondary rounded-2xl shadow-2xl p-8 overflow-hidden"
+            >
+              <form onSubmit={handleSaveParking}>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold">{newParkingData.id ? 'Modifier le Parking' : 'Nouveau Parking'}</h3>
+                  <button type="button" onClick={() => setShowParkingModal(false)} className="p-2 text-text-muted hover:text-text-primary" title="Fermer" aria-label="Fermer">
+                    <X />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <Input 
+                    label="Nom du parking" 
+                    value={newParkingData.name}
+                    onChange={e => setNewParkingData({...newParkingData, name: e.target.value})}
+                    placeholder="Parking Visiteurs, Zone VIP..."
+                    required
+                  />
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-text-secondary ml-1">Type de zone</label>
+                    <select 
+                      className="w-full bg-bg-surface dark:bg-bg-secondary border-border border rounded-xl py-3 px-4 outline-none focus:border-accent-primary transition-all text-text-primary dark:text-white"
+                      value={newParkingData.type}
+                      title="Type de zone"
+                      aria-label="Type de zone"
+                      onChange={e => setNewParkingData({...newParkingData, type: e.target.value as any})}
+                    >
+                      <option value="VISITOR">Visiteurs / Temporaire</option>
+                      <option value="EMPLOYEE">Employés</option>
+                      <option value="EXECUTIVE">VIP / Direction</option>
+                      <option value="DELIVERY">Livraison</option>
+                    </select>
+                  </div>
+
+                  <Input 
+                    label="Capacité (Places max, 0 = illimité)" 
+                    type="number"
+                    min="0"
+                    value={newParkingData.capacity.toString()}
+                    onChange={e => setNewParkingData({...newParkingData, capacity: parseInt(e.target.value || '0', 10)})}
+                    placeholder="0"
+                    required
+                  />
+
+                  <div className="pt-4 flex gap-3">
+                    <Button variant="ghost" className="flex-1" type="button" onClick={() => setShowParkingModal(false)}>Annuler</Button>
+                    <Button variant="primary" className="flex-1" type="submit" disabled={!newParkingData.name}>
+                      Enregistrer
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Modal Ajout Lecteur */}
       <AnimatePresence>
         {showReaderModal && (

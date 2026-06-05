@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, Button, Input } from '../components/UI';
 import { ShieldCheck, Mail, Lock } from 'lucide-react';
-import { PexelsImage, ThemeToggle } from '../components/Common';
+import { ThemeToggle } from '../components/Common';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useStore';
 
@@ -48,22 +48,13 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-bg-primary">
-      <div className="hidden lg:block relative">
-        <PexelsImage query="campus" className="absolute inset-0 h-full w-full" />
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-        <div className="absolute bottom-16 left-16 text-white max-w-md">
-          <h1 className="text-5xl font-bold mb-4">Focus sur l'essentiel.</h1>
-          <p className="text-xl text-white/80">Pilotez la sécurité de votre établissement avec une précision inégalée.</p>
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-bg-primary p-4 relative">
+      <div className="absolute top-8 right-8">
+        <ThemeToggle />
       </div>
 
-      <div className="flex flex-col p-8 lg:p-24 relative justify-center bg-bg-secondary">
-        <div className="absolute top-8 right-8">
-          <ThemeToggle />
-        </div>
-
-        <div className="max-w-md w-full mx-auto space-y-12">
+      <div className="flex flex-col p-8 sm:p-12 w-full max-w-md bg-bg-secondary rounded-3xl shadow-xl border border-border">
+        <div className="w-full space-y-12">
           <div className="space-y-4">
             <div className="w-12 h-12 bg-accent-primary rounded-xl flex items-center justify-center">
               <ShieldCheck size={24} className="text-white" />

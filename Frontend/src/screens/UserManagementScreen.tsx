@@ -69,8 +69,15 @@ export function UserManagementScreen() {
 
       if (!usersRes.ok || !parkingsRes.ok) throw new Error('Erreur lors du chargement des données');
 
-      const usersData = await usersRes.json();
+      let usersData = await usersRes.json();
       const parkingsData = await parkingsRes.json();
+
+      // Appliquer la logique stricte: Les temporaires ne s'affichent QUE si le filtre 'TEMPORAIRE' est actif.
+      if (filters.profile === 'TEMPORAIRE') {
+        usersData = usersData.filter((u: any) => u.profile === null && u.role === 'MEMBER');
+      } else {
+        usersData = usersData.filter((u: any) => !(u.profile === null && u.role === 'MEMBER'));
+      }
 
       setUsers(usersData);
       setParkings(parkingsData);
@@ -224,7 +231,7 @@ export function UserManagementScreen() {
   const roleInfo: Record<string, { label: string, icon: any, color: string }> = {
     'ADMIN': { label: 'Administrateur', icon: Shield, color: 'text-rose-500 bg-rose-500/10' },
     'AGENT': { label: 'Agent Sécurité', icon: UserCog, color: 'text-amber-500 bg-amber-500/10' },
-    'MEMBER': { label: 'Adhérent', icon: Users, color: 'text-blue-500 bg-blue-500/10' }
+    'MEMBER': { label: 'Conducteur', icon: Users, color: 'text-blue-500 bg-blue-500/10' }
   };
 
   const activeFiltersCount = Object.values(filters).filter(v => v !== '').length;
@@ -235,10 +242,10 @@ export function UserManagementScreen() {
   return (
     <div className="space-y-8">
       {/* ... (Header remains similar) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-[60]">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Gestion Utilisateurs</h2>
-          <p className="text-text-secondary">Contrôlez les accès administrateurs, agents et adhérents</p>
+          <p className="text-text-secondary">Contrôlez les accès administrateurs, agents et conducteurs</p>
         </div>
         
         <div className="relative">
@@ -261,7 +268,7 @@ export function UserManagementScreen() {
                 {[
                   { id: 'ADMIN', label: 'Administrateur', icon: Shield, desc: 'Gestion complète du système' },
                   { id: 'AGENT', label: 'Agent Sécurité', icon: UserCog, desc: 'Accès portail et contrôle' },
-                  { id: 'MEMBER', label: 'Adhérent', icon: Users, desc: 'Accès parking (Étudiants, Profs...)' }
+                  { id: 'MEMBER', label: 'Conducteur', icon: Users, desc: 'Accès parking (Étudiants, Profs...)' }
                 ].map(role => (
                   <button 
                     key={role.id}
@@ -344,7 +351,7 @@ export function UserManagementScreen() {
                             <option value="">Tous les rôles</option>
                             <option value="ADMIN">Administrateurs</option>
                             <option value="AGENT">Agents</option>
-                            <option value="MEMBER">Adhérents</option>
+                            <option value="MEMBER">Conducteurs</option>
                           </select>
                         </div>
                         
@@ -366,20 +373,21 @@ export function UserManagementScreen() {
                             </div>
 
                             <div className="space-y-1.5">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted ml-1">Profil Adhérent</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted ml-1">Profil Conducteur</label>
                               <select 
                                 className="w-full bg-bg-surface border-border border rounded-xl py-2 px-3 text-xs font-bold outline-none"
                                 value={filters.profile}
-                                title="Filtre par profil adhérent"
-                                aria-label="Filtre par profil adhérent"
+                                title="Filtre par profil conducteur"
+                                aria-label="Filtre par profil conducteur"
                                 onChange={(e) => setFilters({ ...filters, profile: e.target.value })}
                               >
-                                <option value="">Tous les profils</option>
+                                <option value="">Tous les profils (Sauf Temporaires)</option>
                                 <option value="PROFESSEUR">Professeurs</option>
                                 <option value="ETUDIANT">Étudiants</option>
                                 <option value="PERSONNEL">Personnel</option>
                                 <option value="DIRECTION">Direction</option>
                                 <option value="FIDELE">Fidèle</option>
+                                <option value="TEMPORAIRE">Conducteurs Temporaires</option>
                               </select>
                             </div>
                           </>
@@ -625,12 +633,12 @@ export function UserManagementScreen() {
                       
                       <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-2">
-                          <label className="text-xs font-black uppercase tracking-widest text-text-muted ml-1">Profil Adhérent</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-text-muted ml-1">Profil Conducteur</label>
                           <select 
                             className="w-full bg-bg-surface border-border border rounded-2xl h-14 px-5 font-bold outline-none focus:border-accent-primary transition-all appearance-none"
                             value={formData.profile}
-                            title="Profil Adhérent"
-                            aria-label="Profil Adhérent"
+                            title="Profil Conducteur"
+                            aria-label="Profil Conducteur"
                             onChange={(e) => setFormData({ ...formData, profile: e.target.value })}
                           >
                             <option value="PROFESSEUR">👨‍🏫 Professeur</option>

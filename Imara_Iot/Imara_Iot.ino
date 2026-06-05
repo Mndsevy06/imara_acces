@@ -10,8 +10,9 @@
 // ---------------------------------------------------------
 const char* ssid = "STARLINK2";
 const char* password = "DOOT1KAYs";
-// L'URL du backend (Port 8012 d'après .env)
-const char* backendUrl = "http://192.168.1.114:8012/api/scans/verify"; 
+// L'URL du backend (Fixée définitivement grâce à votre configuration réseau)
+const String backendBaseUrl = "http://192.168.1.151:8012";
+
 String readerId = ""; // Sera initialisé avec l'adresse MAC
 
 // ---------------------------------------------------------
@@ -102,6 +103,9 @@ void setup() {
   readerId = resolveReaderId();
   Serial.println("Reader ID : " + readerId);
 
+  // L'IP du PC est maintenant fixe (192.168.1.151), pas besoin de recherche dynamique mDNS.
+  Serial.println("URL du serveur Backend : " + backendBaseUrl);
+
   Serial.println("SYSTÈME OPÉRATIONNEL : Prêt pour les scans et le polling HTTP...");
 }
 
@@ -111,8 +115,8 @@ void grantAccess();
 void pollBackend() {
   if (WiFi.status() != WL_CONNECTED) return;
   
-  // Example url: http://192.168.1.114:8012/api/readers/command?readerId=XYZ
-  String url = "http://192.168.1.114:8012/api/readers/command?readerId=" + readerId;
+  // URL dynamique
+  String url = backendBaseUrl + "/api/readers/command?readerId=" + readerId;
   HTTPClient http;
   http.begin(url);
   http.setTimeout(2000); // Court timeout pour ne pas bloquer
@@ -238,7 +242,8 @@ AccessResult sendScanToBackend(String cardUid) {
   }
 
   HTTPClient http;
-  http.begin(backendUrl);
+  String verifyUrl = backendBaseUrl + "/api/scans/verify";
+  http.begin(verifyUrl);
   http.addHeader("Content-Type", "application/json");
   http.setConnectTimeout(5000);
   http.setTimeout(15000);
@@ -256,7 +261,7 @@ AccessResult sendScanToBackend(String cardUid) {
     Serial.println("Code HTTP : " + String(httpResponseCode));
     Serial.println("Réponse : " + response);
 
-    // Si 200 ou 201, l'adhérent est connu et autorisé
+    // Si 200 ou 201, le conducteur est connu et autorisé
     if (httpResponseCode == 200 || httpResponseCode == 201) {
       result = AccessResult::AUTHORIZED;
     } else if (httpResponseCode == 403) {
@@ -276,7 +281,7 @@ AccessResult sendScanToBackend(String cardUid) {
 }
 
 void grantAccess() {
-  Serial.println("ACCÈS AUTORISÉ (Adhérent reconnu)");
+  Serial.println("ACCÈS AUTORISÉ (Conducteur reconnu)");
   digitalWrite(GREEN_LED_PIN, HIGH);
   barrierServo.write(ANGLE_OPEN);
   

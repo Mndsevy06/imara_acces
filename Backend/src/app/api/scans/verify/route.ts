@@ -136,6 +136,16 @@ export async function POST(req: Request) {
     // ── 4. Handle FAILED cases ──
 
     if (!user) {
+      const nowMs = Date.now();
+      const globalStore = global as any;
+      if (!globalStore.lastScanTime) globalStore.lastScanTime = new Map<string, number>();
+      
+      const lastScanMs = globalStore.lastScanTime.get(cardId) || 0;
+      if (nowMs - lastScanMs < 5000) {
+        return NextResponse.json({ status: 'FAILED', reason: 'Carte non reconnue' }, { status: 403 });
+      }
+      globalStore.lastScanTime.set(cardId, nowMs);
+
       const log = await db.accessLog.create({
         data: {
           userNameSnapshot: 'Inconnu',
@@ -203,64 +213,61 @@ export async function POST(req: Request) {
 
     // ── 5. SUCCESS: check anti-bounce, toggle presence and create log ──
     const nowMs = Date.now();
-    
-    // Rechercher le dernier log SUCCESS de CET utilisateur pour éviter les rebonds ("double-bips" d'erreur) en moins de 10 secondes
-    const lastSuccessLog = await db.accessLog.findFirst({
-      where: {
-        userId: user.id,
-        status: 'SUCCESS'
-      },
-      orderBy: { timestamp: 'desc' },
-    });
-
-    if (lastSuccessLog) {
-      const msSinceLastLog = nowMs - new Date(lastSuccessLog.timestamp).getTime();
-      if (msSinceLastLog < 10000) { // 10 secondes = 10000 millisecondes
-        // On considère ce scan comme un doublon involontaire (rebond).
-        // On ne change PAS la présence et on ne recrée PAS un log de succès/inversion,
-        // on renvoie juste les données actuelles pour que le boîtier donne l'accès ou valide sans pénaliser la suite.
-        
-        if (source === 'PHONE' && reader?.id) {
-          const globalStore = global as any;
-          if (!globalStore.pendingCommands) {
-            globalStore.pendingCommands = new Map<string, string>();
-          }
-          globalStore.pendingCommands.set(reader.id, 'OPEN');
-          console.log(`[Polling] Ordre OPEN stocké (anti-rebond) pour le lecteur : ${reader.id}`);
-        } else if (source === 'PHONE') {
-          console.log(`[Polling] Attention: scan téléphone anti-rebond réussi mais reader.id est null/vide ! readerId fourni: ${readerId}`);
-        }
-
-        return NextResponse.json(
-          {
-            status: 'SUCCESS', // On le rassure pour que la barrière s'ouvre si besoin / LED verte
-            eventType: lastSuccessLog.eventType, 
-            user: {
-              name: user.name,
-              profile: user.profile,
-              presenceStatus: user.presenceStatus,
-            },
-            message: 'Rebond ignoré, accès maintenu'
-          },
-          { status: 200 }
-        );
-      }
+    const globalStore = global as any;
+    if (!globalStore.lastScanTime) {
+      globalStore.lastScanTime = new Map<string, number>();
     }
+
+    // Anti-rebond STRICT en mémoire (Empêche les requêtes concurrentes)
+    const lastScanMs = globalStore.lastScanTime.get(cardId) || 0;
+    if (nowMs - lastScanMs < 5000) {
+      // Rebond intercepté en mémoire (5 secondes)
+      if (source === 'PHONE') {
+        if (!globalStore.pendingCommands) globalStore.pendingCommands = new Map<string, string>();
+        globalStore.pendingCommands.set('ALL', 'OPEN');
+      }
+      return NextResponse.json({
+        status: 'SUCCESS',
+        eventType: user.presenceStatus === 'IN' ? 'SORTIE' : 'ENTREE',
+        user: { name: user.name, profile: user.profile, presenceStatus: user.presenceStatus },
+        message: 'Rebond ignoré, accès maintenu'
+      }, { status: 200 });
+    }
+    
+    // Mettre à jour le timestamp en mémoire
+    globalStore.lastScanTime.set(cardId, nowMs);
 
     const isCurrentlyIn = user.presenceStatus === 'IN';
     const newEventType = isCurrentlyIn ? 'SORTIE' : 'ENTREE';
     const newPresenceStatus = isCurrentlyIn ? 'OUT' : 'IN';
 
-    // Un adhérent temporaire est un MEMBER sans profil ni mot de passe (créé via /visitors)
+    // Un conducteur temporaire est un MEMBER sans profil ni mot de passe (créé via /visitors)
     const isTemporaryVisitor =
       user.role === 'MEMBER' && user.profile === null && !user.passwordHash;
+
+    const targetParkingId = user.assignedParkingId ?? parkingId;
+    
+    // Fetch the target parking to get the latest currentCount and capacity
+    const targetParking = await db.parkingZone.findUnique({ where: { id: targetParkingId } });
+
+    if (newEventType === 'ENTREE' && targetParking && targetParking.currentCount >= targetParking.capacity) {
+      // Parking plein ! On refuse l'accès et on ne crée PAS de log d'entrée
+      return NextResponse.json(
+        {
+          status: 'FAILED',
+          reason: 'Parking complet',
+          message: `Le parking ${targetParking.name} est complet (${targetParking.currentCount}/${targetParking.capacity}).`,
+        },
+        { status: 403 }
+      );
+    }
 
     const [updatedUser, log] = await db.$transaction([
       db.user.update({
         where: { id: user.id },
         data: {
           presenceStatus: newPresenceStatus,
-          // Libérer automatiquement la carte après la sortie d'un adhérent temporaire
+          // Libérer automatiquement la carte après la sortie d'un conducteur temporaire
           ...(newEventType === 'SORTIE' && isTemporaryVisitor ? { cardId: null } : {}),
         },
       }),
@@ -271,13 +278,23 @@ export async function POST(req: Request) {
           plateSnapshot: user.licensePlate ?? 'N/A',
           eventType: newEventType,
           status: 'SUCCESS',
-          parkingId: user.assignedParkingId ?? parkingId,
+          parkingId: targetParkingId,
           readerId: reader?.id ?? null,
           agentId: shouldEnforceReaderValidation ? (validAgents[0]?.id ?? null) : null,
           source,
         },
         include: { parking: true, user: true },
       }),
+      ...(targetParking ? [
+        db.parkingZone.update({
+          where: { id: targetParkingId },
+          data: {
+            currentCount: {
+              ...(newEventType === 'ENTREE' ? { increment: 1 } : { decrement: 1 }),
+            },
+          },
+        }),
+      ] : []),
     ]);
 
     // Broadcast to admin (all) + individually to each valid agent's room
@@ -287,15 +304,14 @@ export async function POST(req: Request) {
     console.log(`[Verify API] Fin traitement SUCCESS. Source: ${source}, Reader: ${reader?.id}`);
 
     // Si le scan vient du téléphone, on dit à l'ESP32 associé d'ouvrir la barrière (via HTTP Polling)
-    if (source === 'PHONE' && reader?.id) {
+    if (source === 'PHONE') {
       const globalStore = global as any;
       if (!globalStore.pendingCommands) {
         globalStore.pendingCommands = new Map<string, string>();
       }
-      globalStore.pendingCommands.set(reader.id, 'OPEN');
-      console.log(`[Polling] Ordre OPEN stocké pour le lecteur : ${reader.id}`);
-    } else if (source === 'PHONE') {
-      console.log(`[Polling] Attention: scan téléphone réussi mais reader.id est null/vide ! readerId fourni: ${readerId}`);
+      // On envoie l'ordre "OPEN" universel ('ALL')
+      globalStore.pendingCommands.set('ALL', 'OPEN');
+      console.log(`[Polling] Ordre OPEN universel stocké (ALL).`);
     }
 
     return NextResponse.json(

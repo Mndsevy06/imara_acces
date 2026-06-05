@@ -14,9 +14,12 @@ export async function GET(req: Request) {
   }
 
   const command = globalStore.pendingCommands.get(readerId);
-  if (command === 'OPEN') {
+  const universalCommand = globalStore.pendingCommands.get('ALL');
+
+  if (command === 'OPEN' || universalCommand === 'OPEN') {
     // Supprimer la commande une fois consommée par l'ESP32
     globalStore.pendingCommands.delete(readerId);
+    globalStore.pendingCommands.delete('ALL');
     return NextResponse.json({ command: 'OPEN' });
   }
 

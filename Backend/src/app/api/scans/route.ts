@@ -24,6 +24,7 @@ export async function GET(req: Request) {
       reason: log.failReason || undefined,
       source: log.source,
       readerId: log.readerId,
+      isTemporary: (log.user?.profile === null && log.user?.role === 'MEMBER') || log.userNameSnapshot === 'Conducteur Temporaire'
     }));
 
     return NextResponse.json(formattedLogs, { status: 200 });
