@@ -128,21 +128,31 @@ export function AgentOperationalScreen() {
 
   // ── WebSocket Scan Listener ──────────────────────────────────────────────────
   useEffect(() => {
-    if (scans.length > 0 && activeTab === 'AUTO') {
+    if (scans.length > 0) {
       const latestScan = scans[0];
-      const scanTime = new Date(latestScan.timestamp || Date.now()).getTime();
       
-      // On ignore les vieux scans (de plus de 5 secondes)
-      if (Date.now() - scanTime < 5000) {
-        setScanPulseKey(prev => prev + 1);
-        setScanStatus(latestScan.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED');
-        setCurrentScan(latestScan);
+      // Update local parkings array with real-time capacity from WebSocket
+      if (latestScan.parking) {
+        setParkings(prev => prev.map(p => 
+          p.id === latestScan.parking.id ? latestScan.parking : p
+        ));
+      }
+
+      if (activeTab === 'AUTO') {
+        const scanTime = new Date(latestScan.timestamp || Date.now()).getTime();
         
-        if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
-        displayTimerRef.current = setTimeout(() => { 
-          setScanStatus('WAITING'); 
-          setCurrentScan(null); 
-        }, 5000);
+        // On ignore les vieux scans (de plus de 5 secondes)
+        if (Date.now() - scanTime < 5000) {
+          setScanPulseKey(prev => prev + 1);
+          setScanStatus(latestScan.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED');
+          setCurrentScan(latestScan);
+          
+          if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
+          displayTimerRef.current = setTimeout(() => { 
+            setScanStatus('WAITING'); 
+            setCurrentScan(null); 
+          }, 5000);
+        }
       }
     }
   }, [scans, activeTab]);
@@ -285,7 +295,16 @@ export function AgentOperationalScreen() {
       });
 
       setIsDeleting(false);
-      showToast(res.ok ? 'SUCCESS' : 'ERROR', res.ok ? 'Carte réinitialisée avec succès' : 'Tag effacé — erreur base de données');
+      
+      if (res.ok) {
+        showToast('SUCCESS', 'Carte réinitialisée avec succès');
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/parkings`)
+          .then(r => r.json())
+          .then(setParkings)
+          .catch(console.error);
+      } else {
+        showToast('ERROR', 'Tag effacé — erreur base de données');
+      }
     } catch (err: any) {
       console.error('[NFC] Erreur suppression :', err);
       setIsDeleting(false);

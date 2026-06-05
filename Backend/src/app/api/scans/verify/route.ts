@@ -262,7 +262,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const [updatedUser, log] = await db.$transaction([
+    const [updatedUser, log, updatedParking] = await db.$transaction([
       db.user.update({
         where: { id: user.id },
         data: {
@@ -290,12 +290,19 @@ export async function POST(req: Request) {
           where: { id: targetParkingId },
           data: {
             currentCount: {
-              ...(newEventType === 'ENTREE' ? { increment: 1 } : { decrement: 1 }),
+              ...(newEventType === 'ENTREE' 
+                ? { increment: 1 } 
+                : (targetParking.currentCount > 0 ? { decrement: 1 } : { increment: 0 })),
             },
           },
         }),
       ] : []),
     ]);
+
+    // Inject latest parking count so WebSocket gets real-time data
+    if (updatedParking) {
+      log.parking = updatedParking;
+    }
 
     // Broadcast to admin (all) + individually to each valid agent's room
     socketService.emit('scan:new', log);

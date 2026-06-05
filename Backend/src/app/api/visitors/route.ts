@@ -53,8 +53,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Aucun parking disponible' }, { status: 400 });
     }
 
-    // Contrôle de capacité
-    if (targetParking.currentCount >= targetParking.capacity) {
+    const existingUser = await db.user.findUnique({ where: { licensePlate: targetPlate } });
+    const isAlreadyIn = existingUser?.presenceStatus === 'IN';
+
+    // Contrôle de capacité (uniquement si le visiteur n'est pas déjà à l'intérieur)
+    if (!isAlreadyIn && targetParking.currentCount >= targetParking.capacity) {
       return NextResponse.json(
         { error: `Le parking ${targetParking.name} est complet (${targetParking.currentCount}/${targetParking.capacity}).` }, 
         { status: 403 }
@@ -62,7 +65,7 @@ export async function POST(req: Request) {
     }
 
     // 4. Créer ou Mettre à jour l'utilisateur et le log d'accès (Transaction)
-    const [user, log, updatedParking] = await db.$transaction([
+    const queries: any[] = [
       db.user.upsert({
         where: { licensePlate: targetPlate },
         update: {
@@ -96,11 +99,19 @@ export async function POST(req: Request) {
         },
         include: { parking: true, user: true },
       }),
-      db.parkingZone.update({
-        where: { id: targetParking.id },
-        data: { currentCount: { increment: 1 } },
-      }),
-    ]);
+    ];
+    if (!isAlreadyIn) {
+      queries.push(
+        db.parkingZone.update({
+          where: { id: targetParking.id },
+          data: { currentCount: { increment: 1 } },
+        })
+      );
+    }
+
+    const results = await db.$transaction(queries);
+    const user = results[0];
+    const log = results[1];
     
     // Associer l'userId au log après création (car on ne pouvait pas le faire dans l'array transaction directement pour un nouvel user)
     const finalLog = await db.accessLog.update({
@@ -112,7 +123,15 @@ export async function POST(req: Request) {
     // 4. Émettre le log pour l'afficher en direct dans l'historique
     socketService.emit('scan:new', finalLog);
 
-    return NextResponse.json({ message: 'Carte assignée avec succès', user }, { status: 201 });
+    // 5. Ordre d'ouverture de la barrière physique (ESP32 Polling)
+    if (!globalStore.pendingCommands) {
+      globalStore.pendingCommands = new Map<string, string>();
+    }
+    // On envoie l'ordre "OPEN" universel ('ALL') pour ouvrir la barrière
+    globalStore.pendingCommands.set('ALL', 'OPEN');
+    console.log(`[Polling] Ordre OPEN universel stocké (ALL) suite à assignation visiteur.`);
+
+    return NextResponse.json({ message: 'Carte assignée avec succès et barrière ouverte', user }, { status: 201 });
   } catch (error: any) {
     console.error('Erreur assignation carte:', error);
     return NextResponse.json({ error: 'Erreur interne lors de l\'assignation' }, { status: 500 });

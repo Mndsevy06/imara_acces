@@ -61,6 +61,23 @@ export async function DELETE(
       return new NextResponse('Cannot delete the super admin account', { status: 403 });
     }
 
+    const userToDelete = await db.user.findUnique({
+      where: { id },
+    });
+
+    if (!userToDelete) {
+      return new NextResponse('User not found', { status: 404 });
+    }
+
+    if (userToDelete.presenceStatus === 'IN' && userToDelete.assignedParkingId) {
+      await db.parkingZone.update({
+        where: { id: userToDelete.assignedParkingId },
+        data: {
+          currentCount: { decrement: 1 },
+        },
+      });
+    }
+
     await db.user.delete({
       where: { id },
     });

@@ -562,7 +562,7 @@ export function ConfigurationsScreen() {
 
               {/* Onboarding Content */}
               <main className="flex-1 overflow-y-auto p-12 bg-transparent">
-                 <form onSubmit={handleSave} className="max-w-3xl mx-auto h-full flex flex-col text-text-primary dark:text-white">
+                 <form onSubmit={(e) => { e.preventDefault(); if (activeTab !== 'AGENTS') handleSave(e as any); }} className="max-w-3xl mx-auto h-full flex flex-col text-text-primary dark:text-white">
                     <AnimatePresence mode="wait">
                         {activeTab === 'INFO' && (
                           <motion.div 
