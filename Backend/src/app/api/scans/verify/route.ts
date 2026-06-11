@@ -164,6 +164,16 @@ export async function POST(req: Request) {
       if (validAgents.length > 0) {
         socketService.toAgents(validAgents.map((a) => a.id), 'scan:new', payload);
       }
+      
+      // Si le scan vient du téléphone et la carte est inconnue, on envoie l'ordre RED à l'ESP32
+      if (source === 'PHONE') {
+        if (!globalStore.pendingCommands) {
+          globalStore.pendingCommands = new Map<string, string>();
+        }
+        globalStore.pendingCommands.set('ALL', 'RED');
+        console.log(`[Polling] Ordre RED universel stocké (ALL) - Carte inconnue du téléphone.`);
+      }
+      
       // Unknown card: deny access
       return NextResponse.json(
         { status: 'FAILED', reason: 'Carte non reconnue', log },

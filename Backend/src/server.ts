@@ -2,6 +2,7 @@ import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
 import { socketService } from './lib/socket';
+import { Bonjour } from 'bonjour-service';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0';
@@ -43,5 +44,19 @@ app.prepare().then(() => {
 
   httpServer.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`);
+
+    // Publish a stable mDNS hostname for local clients (phone + ESP32).
+    try {
+      const bonjour = new Bonjour();
+      bonjour.publish({
+        name: 'imara-backend',
+        type: 'http',
+        port,
+        host: 'imara-backend.local',
+      });
+      console.log('> mDNS published: http://imara-backend.local:' + port);
+    } catch (mdnsError) {
+      console.error('> mDNS publish failed:', mdnsError);
+    }
   });
 });

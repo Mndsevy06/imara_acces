@@ -11,6 +11,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return new NextResponse('ID missing', { status: 400 });
     }
 
+    // Valider que le type fait partie des valeurs acceptées (si fourni)
+    if (type) {
+      const validTypes = ['PROFESSOR', 'STUDENT', 'VISITOR', 'STAFF', 'CHURCH'];
+      if (!validTypes.includes(type)) {
+        return new NextResponse(`Type invalide. Types acceptés: ${validTypes.join(', ')}`, { status: 400 });
+      }
+    }
+
     const updated = await db.parkingZone.update({
       where: { id },
       data: {

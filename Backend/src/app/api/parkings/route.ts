@@ -25,6 +25,12 @@ export async function POST(req: Request) {
       return new NextResponse('Données invalides', { status: 400 });
     }
 
+    // Valider que le type fait partie des valeurs acceptées
+    const validTypes = ['PROFESSOR', 'STUDENT', 'VISITOR', 'STAFF', 'CHURCH'];
+    if (!validTypes.includes(type)) {
+      return new NextResponse(`Type invalide. Types acceptés: ${validTypes.join(', ')}`, { status: 400 });
+    }
+
     const parking = await db.parkingZone.create({
       data: {
         name,

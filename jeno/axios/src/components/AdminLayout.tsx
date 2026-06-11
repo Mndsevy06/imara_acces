@@ -86,20 +86,6 @@ export function AdminLayout() {
             </button>
           </div>
 
-          {/* Config Selector */}
-          <div className="px-6 mb-6">
-            <div className="bg-bg-surface p-3 rounded-xl border border-border flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center text-success">
-                <Settings2 size={16} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] uppercase font-bold text-text-muted tracking-wider">Config Active</p>
-                <p className="text-xs font-bold truncate">Imara Principal 2026</p>
-              </div>
-              <ChevronDown size={14} className="text-text-muted" />
-            </div>
-          </div>
-
           {/* Navigation */}
           <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
             {menuItems.map((item) => {
@@ -156,7 +142,7 @@ export function AdminLayout() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
-        <header className="h-20 bg-bg-secondary border-b border-border flex items-center px-6 lg:px-10 sticky top-0 z-30">
+        <header className="h-20 bg-bg-secondary border-b border-border flex items-center px-6 lg:px-10 sticky top-0 z-40">
           <button 
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 -ml-2 lg:hidden text-text-secondary"

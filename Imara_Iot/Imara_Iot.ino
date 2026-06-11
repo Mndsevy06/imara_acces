@@ -11,7 +11,7 @@
 const char* ssid = "STARLINK2";
 const char* password = "DOOT1KAYs";
 // L'URL du backend (Fixée définitivement grâce à votre configuration réseau)
-const String backendBaseUrl = "http://192.168.1.151:8012";
+const String backendBaseUrl = "http://192.168.1.207:8012";
 
 String readerId = ""; // Sera initialisé avec l'adresse MAC
 
@@ -111,6 +111,7 @@ void setup() {
 
 // Déclaration anticipée pour grantAccess utilisée dans pollBackend
 void grantAccess();
+void denyAccess(const String &reason);
 
 void pollBackend() {
   if (WiFi.status() != WL_CONNECTED) return;
@@ -124,10 +125,13 @@ void pollBackend() {
   int code = http.GET();
   if (code == 200) {
     String response = http.getString();
-    // La réponse JSON est {"command":"OPEN"} ou {"command":"NONE"}
+    // La réponse JSON est {"command":"OPEN"}, {"command":"RED"} ou {"command":"NONE"}
     if (response.indexOf("\"command\":\"OPEN\"") >= 0) {
       Serial.println("\n[Polling] Commande d'ouverture reçue du serveur !");
       grantAccess();
+    } else if (response.indexOf("\"command\":\"RED\"") >= 0) {
+      Serial.println("\n[Polling] Commande refus reçue du serveur (LED rouge).");
+      denyAccess("ACCÈS REFUSÉ (Carte inconnue - téléphone)");
     }
   }
   http.end();

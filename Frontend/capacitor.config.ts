@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Imara Access',
   webDir: 'dist',
   server: {
-    url: 'http://192.168.1.151:20000',
+    url: 'http://10.200.194.111:20000',
     cleartext: true
   }
 };

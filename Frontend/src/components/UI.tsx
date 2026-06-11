@@ -111,7 +111,7 @@ export function Input({ label, icon: Icon, error, className, ...props }: InputPr
         )}
         <input
           className={cn(
-            "w-full bg-bg-surface border-border border rounded-xl py-3 px-4 outline-none transition-all placeholder:text-text-muted focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/10",
+            "w-full bg-bg-surface border-border border rounded-xl py-3 px-4 outline-none transition-all placeholder:text-text-muted focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/10 text-text-primary",
             Icon && "pl-11",
             error && "border-danger focus:border-danger focus:ring-danger/10",
             className

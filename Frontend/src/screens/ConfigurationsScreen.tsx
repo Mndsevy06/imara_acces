@@ -68,6 +68,10 @@ export function ConfigurationsScreen() {
     capacity: 0,
   });
 
+  // États pour les parkings et lecteurs en attente d'enregistrement
+  const [stagingParkings, setStagingParkings] = useState<any[]>([]);
+  const [stagingReaders, setStagingReaders] = useState<any[]>([]);
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -262,6 +266,45 @@ export function ConfigurationsScreen() {
     setError(null);
 
     try {
+      // Étape 1: Enregistrer les parkings du staging
+      const createdParkingIds: string[] = [];
+      for (const parking of stagingParkings) {
+        if (parking.isStaging) {
+          const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/parkings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: parking.name,
+              type: parking.type,
+              capacity: parking.capacity,
+            })
+          });
+          if (!res.ok) throw new Error(`Erreur lors de l'enregistrement du parking ${parking.name}`);
+          const created = await res.json();
+          createdParkingIds.push(created.id);
+        }
+      }
+
+      // Étape 2: Enregistrer les lecteurs du staging
+      const createdReaderIds: string[] = [];
+      for (const reader of stagingReaders) {
+        if (reader.isStaging) {
+          const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/readers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: reader.id,
+              label: reader.label,
+              type: reader.type,
+              location: reader.location,
+            })
+          });
+          if (!res.ok) throw new Error(`Erreur lors de l'enregistrement du lecteur ${reader.label}`);
+          createdReaderIds.push(reader.id);
+        }
+      }
+
+      // Étape 3: Enregistrer la configuration
       const url = editingConfig 
         ? `${import.meta.env.VITE_API_BASE_URL}/configurations/${editingConfig.id}`
         : `${import.meta.env.VITE_API_BASE_URL}/configurations`;
@@ -285,7 +328,11 @@ export function ConfigurationsScreen() {
         }),
       });
 
-      if (!response.ok) throw new Error('Erreur lors de l\'enregistrement');
+      if (!response.ok) throw new Error('Erreur lors de l\'enregistrement de la configuration');
+
+      // Réinitialiser les éléments du staging
+      setStagingParkings([]);
+      setStagingReaders([]);
 
       await fetchData();
       setShowModal(false);
@@ -318,25 +365,25 @@ export function ConfigurationsScreen() {
     e.preventDefault();
     try {
       const isEdit = !!newParkingData.id;
-      const url = isEdit 
-        ? `${import.meta.env.VITE_API_BASE_URL}/parkings/${newParkingData.id}` 
-        : `${import.meta.env.VITE_API_BASE_URL}/parkings`;
-      const method = isEdit ? 'PUT' : 'POST';
+      const parkingData = {
+        id: newParkingData.id || `staging-${Date.now()}`,
+        name: newParkingData.name,
+        type: newParkingData.type,
+        capacity: parseInt(newParkingData.capacity.toString() || '0', 10),
+        isStaging: true,
+        currentCount: 0,
+      };
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newParkingData.name,
-          type: newParkingData.type,
-          capacity: parseInt(newParkingData.capacity.toString() || '0', 10),
-        })
-      });
+      if (isEdit) {
+        // Modifier un parking du staging
+        setStagingParkings(prev => prev.map(p => p.id === newParkingData.id ? parkingData : p));
+      } else {
+        // Ajouter un nouveau parking au staging
+        setStagingParkings(prev => [...prev, parkingData]);
+      }
 
-      if (!response.ok) throw new Error('Erreur d\'enregistrement du parking');
-
-      await fetchData();
       setShowParkingModal(false);
+      setNewParkingData({ id: '', name: '', type: 'VISITOR', capacity: 0 });
     } catch (err: any) {
       alert(err.message);
     }
@@ -345,6 +392,14 @@ export function ConfigurationsScreen() {
   const handleDeleteParking = async (id: string) => {
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce parking ?')) return;
     try {
+      // Vérifier si c'est un parking du staging
+      const stagingParking = stagingParkings.find(p => p.id === id);
+      if (stagingParking) {
+        setStagingParkings(prev => prev.filter(p => p.id !== id));
+        return;
+      }
+
+      // Sinon, supprimer directement de la BD
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/parkings/${id}`, {
         method: 'DELETE',
       });
@@ -583,7 +638,7 @@ export function ConfigurationsScreen() {
                                 <div className="space-y-2">
                                   <label className="text-sm font-bold text-text-secondary">Description</label>
                                   <textarea 
-                                    className="w-full bg-bg-surface dark:bg-bg-secondary border-border border rounded-3xl py-4 px-6 outline-none focus:border-accent-primary h-32 transition-all text-text-primary dark:text-white placeholder:text-text-muted"
+                                    className="w-full bg-bg-surface dark:bg-bg-secondary border-border border rounded-3xl py-4 px-6 outline-none focus:border-accent-primary h-32 transition-all light:text-slate-900 text-text-primary dark:text-white placeholder:text-text-muted"
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                     placeholder="Expliquez quand et comment utiliser ce scénario..."
@@ -593,7 +648,7 @@ export function ConfigurationsScreen() {
                                   <div className="space-y-2">
                                     <label className="text-sm font-bold text-text-secondary">Verrouillage de sécurité</label>
                                     <select 
-                                      className="w-full bg-bg-surface dark:bg-bg-secondary border-border border rounded-2xl py-3 px-4 font-medium outline-none focus:border-accent-primary transition-all text-text-primary dark:text-white"
+                                      className="w-full bg-bg-surface dark:bg-bg-secondary border-border border rounded-2xl py-3 px-4 font-medium outline-none focus:border-accent-primary transition-all light:text-slate-900 text-text-primary dark:text-white"
                                       value={formData.status}
                                       onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                                       title="Verrouillage de sécurité"
@@ -635,19 +690,22 @@ export function ConfigurationsScreen() {
                                 </div>
 
                                 <div className="space-y-3">
-                                  {parkings.length === 0 ? (
+                                  {parkings.length === 0 && stagingParkings.length === 0 ? (
                                     <p className="text-sm text-text-muted italic p-6 bg-bg-surface rounded-2xl border border-dashed border-border text-center">
                                       Aucun parking disponible.
                                     </p>
                                   ) : (
-                                    parkings.map(parking => (
+                                    [...parkings, ...stagingParkings].map(parking => (
                                       <div key={parking.id} className="p-4 bg-bg-surface border border-border rounded-xl flex items-center justify-between">
                                         <div>
-                                          <p className="font-bold">{parking.name}</p>
+                                          <div className="flex items-center gap-2">
+                                            <p className="font-bold">{parking.name}</p>
+                                            {parking.isStaging && <span className="text-xs bg-accent-primary text-white px-2 py-0.5 rounded-lg font-bold">En attente</span>}
+                                          </div>
                                           <div className="flex gap-4 mt-1">
                                             <span className="text-xs bg-bg-secondary px-2 py-0.5 rounded text-text-muted">Type: {parking.type}</span>
                                             <span className="text-xs font-bold text-accent-primary">Places: {parking.capacity || 'Illimité'}</span>
-                                            <span className="text-xs font-bold text-success">Occupées: {parking.currentCount}</span>
+                                            {!parking.isStaging && <span className="text-xs font-bold text-success">Occupées: {parking.currentCount}</span>}
                                           </div>
                                         </div>
                                         <div className="flex gap-2">
@@ -706,12 +764,12 @@ export function ConfigurationsScreen() {
 
 
                                 <div className="space-y-3">
-                                  {readers.length === 0 ? (
+                                  {readers.length === 0 && stagingReaders.length === 0 ? (
                                     <p className="text-sm text-text-muted italic p-6 bg-bg-surface rounded-2xl border border-dashed border-border text-center">
                                       Aucun lecteur enregistré. Branchez un lecteur puis scannez une carte pour récupérer son ID automatiquement.
                                     </p>
                                   ) : (
-                                    readers.map((reader) => {
+                                    [...readers, ...stagingReaders].map((reader) => {
                                       const selected = selectedReaderIds.includes(reader.id);
                                       return (
                                         <button
@@ -736,7 +794,10 @@ export function ConfigurationsScreen() {
                                                 <Cpu size={18} className="text-text-muted" />
                                               </div>
                                               <div>
-                                                <p className="font-bold text-sm">{reader.label}</p>
+                                                <div className="flex items-center gap-2">
+                                                  <p className="font-bold text-sm">{reader.label}</p>
+                                                  {reader.isStaging && <span className="text-xs bg-accent-primary text-white px-2 py-0.5 rounded-lg font-bold">En attente</span>}
+                                                </div>
                                                 <p className="text-[10px] text-text-muted uppercase font-bold">{reader.type} • {reader.location}</p>
                                               </div>
                                             </div>
@@ -834,7 +895,7 @@ export function ConfigurationsScreen() {
                                        <label className="text-xs font-bold text-text-secondary uppercase tracking-widest">Lecteur assigné</label>
                                        <select
                                         className={cn(
-                                          "w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary",
+                                          "w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary light:text-slate-900 text-text-primary dark:text-white",
                                           selectedReaderIds.length === 1 && "opacity-70 cursor-not-allowed bg-bg-surface"
                                         )}
                                         value={draft?.readerId || ''}
@@ -894,7 +955,7 @@ export function ConfigurationsScreen() {
                                       <div className="space-y-1">
                                        <label className="text-xs font-bold text-text-secondary uppercase tracking-widest">Statut</label>
                                        <select
-                                        className="w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary"
+                                        className="w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary light:text-slate-900 text-text-primary dark:text-white"
                                         value={draft?.status || 'OFFLINE'}
                                         title="Statut de l'agent"
                                         aria-label="Statut de l'agent"
@@ -984,16 +1045,18 @@ export function ConfigurationsScreen() {
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-text-secondary ml-1">Type de zone</label>
                     <select 
-                      className="w-full bg-bg-surface dark:bg-bg-secondary border-border border rounded-xl py-3 px-4 outline-none focus:border-accent-primary transition-all text-text-primary dark:text-white"
+                      className="w-full bg-bg-surface dark:bg-bg-secondary border-border border rounded-xl py-3 px-4 outline-none focus:border-accent-primary transition-all light:text-slate-900 text-text-primary dark:text-white"
                       value={newParkingData.type}
                       title="Type de zone"
                       aria-label="Type de zone"
                       onChange={e => setNewParkingData({...newParkingData, type: e.target.value as any})}
                     >
+                      <option value="">Sélectionner un type...</option>
+                      <option value="PROFESSOR">Professeurs</option>
+                      <option value="STUDENT">Étudiants</option>
                       <option value="VISITOR">Visiteurs / Temporaire</option>
-                      <option value="EMPLOYEE">Employés</option>
-                      <option value="EXECUTIVE">VIP / Direction</option>
-                      <option value="DELIVERY">Livraison</option>
+                      <option value="STAFF">Personnel / Staff</option>
+                      <option value="CHURCH">Église / Chapelle</option>
                     </select>
                   </div>
 
@@ -1009,7 +1072,7 @@ export function ConfigurationsScreen() {
 
                   <div className="pt-4 flex gap-3">
                     <Button variant="ghost" className="flex-1" type="button" onClick={() => setShowParkingModal(false)}>Annuler</Button>
-                    <Button variant="primary" className="flex-1" type="submit" disabled={!newParkingData.name}>
+                    <Button variant="primary" className="flex-1" type="submit" disabled={!newParkingData.name || !newParkingData.type}>
                       Enregistrer
                     </Button>
                   </div>
@@ -1071,7 +1134,7 @@ export function ConfigurationsScreen() {
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-text-secondary ml-1">Type de technologie</label>
                   <select 
-                    className="w-full bg-bg-surface dark:bg-bg-secondary border-border border rounded-xl py-3 px-4 outline-none focus:border-accent-primary transition-all text-text-primary dark:text-white"
+                    className="w-full bg-bg-surface dark:bg-bg-secondary border-border border rounded-xl py-3 px-4 outline-none focus:border-accent-primary transition-all light:text-slate-900 text-text-primary dark:text-white"
                     value={newReaderData.type}
                     title="Type de technologie"
                     aria-label="Type de technologie"
@@ -1089,21 +1152,17 @@ export function ConfigurationsScreen() {
                     variant="primary" 
                     className="flex-1" 
                     disabled={!newReaderData.id || !newReaderData.label}
-                    onClick={async () => {
+                    onClick={() => {
                       try {
-                        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/readers`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(newReaderData)
-                        });
-                        if (res.ok) {
-                          await fetchData();
-                          setSelectedReaderIds((prev) => prev.includes(newReaderData.id) ? prev : [...prev, newReaderData.id]);
-                          setShowReaderModal(false);
-                          setNewReaderData({ id: '', label: '', location: '', type: 'NFC' });
-                        } else {
-                          throw new Error(await res.text());
-                        }
+                        // Ajouter le lecteur au staging
+                        const readerData = {
+                          ...newReaderData,
+                          isStaging: true,
+                        };
+                        setStagingReaders((prev) => [...prev, readerData]);
+                        setSelectedReaderIds((prev) => prev.includes(newReaderData.id) ? prev : [...prev, newReaderData.id]);
+                        setShowReaderModal(false);
+                        setNewReaderData({ id: '', label: '', location: '', type: 'NFC' });
                       } catch (err: any) {
                         setError(err.message || 'Erreur lors de la création du lecteur');
                       }
