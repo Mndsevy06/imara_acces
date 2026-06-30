@@ -52,6 +52,8 @@ export function AgentOperationalScreen() {
   const selectedParkingIdRef = useRef(selectedParkingId);
   const displayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastProcessedScanIdRef = useRef<string | null>(null);
+  const isProcessingNfcRef = useRef(false);
 
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { isWritingRef.current = isWriting; }, [isWriting]);
@@ -141,8 +143,9 @@ export function AgentOperationalScreen() {
       if (activeTab === 'AUTO') {
         const scanTime = new Date(latestScan.timestamp || Date.now()).getTime();
         
-        // On ignore les vieux scans (de plus de 5 secondes)
-        if (Date.now() - scanTime < 5000) {
+        // On ignore les vieux scans (de plus de 5 secondes) ou déjà traités
+        if (Date.now() - scanTime < 5000 && lastProcessedScanIdRef.current !== latestScan.id) {
+          lastProcessedScanIdRef.current = latestScan.id;
           setScanPulseKey(prev => prev + 1);
           setScanStatus(latestScan.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED');
           setCurrentScan(latestScan);
@@ -159,6 +162,10 @@ export function AgentOperationalScreen() {
 
   // ── NFC scan handler ─────────────────────────────────────────────────────────
   const handleNfcScan = (event: any) => {
+    if (isProcessingNfcRef.current) return;
+    isProcessingNfcRef.current = true;
+    setTimeout(() => { isProcessingNfcRef.current = false; }, 3000);
+
     console.log('[NFC] Événement reçu — tag:', JSON.stringify(event));
 
     // Vérification des horaires de l'agent
@@ -230,6 +237,7 @@ export function AgentOperationalScreen() {
       setScanStatus(payload.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED');
       const scanData = payload.log || payload;
       if (!scanData.id) scanData.id = `local-${Date.now()}`;
+      lastProcessedScanIdRef.current = scanData.id;
       setCurrentScan(scanData);
       if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
       displayTimerRef.current = setTimeout(() => { setScanStatus('WAITING'); setCurrentScan(null); }, 5000);

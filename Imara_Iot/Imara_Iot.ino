@@ -29,7 +29,7 @@ Servo barrierServo;
 
 const int ANGLE_CLOSED = 0;   
 const int ANGLE_OPEN = 90;    
-const int OPEN_DURATION = 3000; 
+const int OPEN_DURATION = 10000; 
 
 enum class AccessResult {
   AUTHORIZED,
@@ -291,7 +291,7 @@ void grantAccess() {
   
   unsigned long now = millis();
   barrierCloseTime = now + OPEN_DURATION;
-  greenLedOffTime = now + 1000;
+  greenLedOffTime = now + 5000;
 }
 
 void denyAccess(const String &reason) {
@@ -299,5 +299,5 @@ void denyAccess(const String &reason) {
   digitalWrite(RED_LED_PIN, HIGH);
   
   unsigned long now = millis();
-  redLedOffTime = now + 1000;
+  redLedOffTime = now + 2000;
 }

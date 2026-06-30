@@ -242,7 +242,7 @@ export function UserManagementScreen() {
   return (
     <div className="space-y-8">
       {/* ... (Header remains similar) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-[60]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-40">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Gestion Utilisateurs</h2>
           <p className="text-text-secondary">Contrôlez les accès administrateurs, agents et conducteurs</p>
@@ -290,7 +290,7 @@ export function UserManagementScreen() {
         </div>
       </div>
 
-      <Card className="p-4 bg-bg-surface/50 border-none shadow-sm relative z-50 !overflow-visible">
+      <Card className="p-4 bg-bg-surface/50 border-none shadow-sm relative z-30 !overflow-visible">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="w-full md:max-w-sm">
              <Input 
