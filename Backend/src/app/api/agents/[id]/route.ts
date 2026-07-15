@@ -50,8 +50,11 @@ export async function PATCH(
     });
 
     return NextResponse.json({ ...user, agent });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[AGENT_PATCH]', error);
+    if (error.code === 'P2002') {
+      return new NextResponse('Cet email est déjà utilisé par un autre utilisateur', { status: 400 });
+    }
     return new NextResponse('Internal Error', { status: 500 });
   }
 }

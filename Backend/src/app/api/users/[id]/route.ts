@@ -14,15 +14,15 @@ export async function PATCH(
     // Normalize to uppercase hex without separators so it matches ESP32 output
     const cardId = rawCardId ? rawCardId.replace(/[\s:.-]/g, '').toUpperCase() : null;
 
-    const data: any = {
-      name,
-      email: email || null,
-      role,
-      profile: profile || null,
-      licensePlate: licensePlate || null,
-      cardId: cardId,
-      assignedParkingId: assignedParkingId || null,
-    };
+    const data: any = {};
+    
+    if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = email || null;
+    if (role !== undefined) data.role = role;
+    if (profile !== undefined) data.profile = profile || null;
+    if (licensePlate !== undefined) data.licensePlate = licensePlate || null;
+    if (rawCardId !== undefined) data.cardId = cardId || null;
+    if (assignedParkingId !== undefined) data.assignedParkingId = assignedParkingId || null;
 
     if (password) {
       data.passwordHash = await bcrypt.hash(password, 10);
@@ -38,9 +38,9 @@ export async function PATCH(
 
     const { passwordHash: _, ...userWithoutPassword } = user as any;
     return NextResponse.json(userWithoutPassword);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[USER_PATCH]', error);
-    return new NextResponse('Internal Error', { status: 500 });
+    return new NextResponse(error.message || 'Internal Error', { status: 500 });
   }
 }
 

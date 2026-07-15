@@ -213,7 +213,10 @@ export function UserManagementScreen() {
         body: JSON.stringify({ password: newPass }),
       });
 
-      if (!response.ok) throw new Error('Erreur lors de la réinitialisation');
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Erreur lors de la réinitialisation');
+      }
       alert('Mot de passe mis à jour !');
     } catch (err: any) {
       alert(err.message);
