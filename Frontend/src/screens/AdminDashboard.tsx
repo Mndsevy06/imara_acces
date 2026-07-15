@@ -66,7 +66,7 @@ export function AdminDashboard() {
     <div className="space-y-10">
       {/* Welcome Banner */}
       <Card className="relative p-0 border-none overflow-hidden h-64 flex flex-col justify-end">
-        <PexelsImage query="parking" className="absolute inset-0 z-0" />
+        <PexelsImage query="car" className="absolute inset-0 z-0" />
         <div className="relative z-10 p-8 lg:p-12 text-white">
           <motion.div
             initial={{ opacity: 0, x: -20 }}

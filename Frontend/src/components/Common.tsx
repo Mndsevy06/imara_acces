@@ -39,10 +39,10 @@ export function PexelsImage({
   // Mocking Pexels URL but in real app would use VITE_PEXELS_API_KEY
   // For demo purposes, we use a constant high-quality image URL based on common pexels patterns
   const images: Record<string, string> = {
-    'campus': 'https://images.pexels.com/photos/256490/pexels-photo-256490.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    'parking': 'https://images.pexels.com/photos/1756957/pexels-photo-1756957.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    'security': 'https://images.pexels.com/photos/5926393/pexels-photo-5926393.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    'car': 'https://images.pexels.com/photos/170281/pexels-photo-170281.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
+    'campus': 'https://picsum.photos/seed/campus/1260/750',
+    'parking': 'https://picsum.photos/seed/parking/1260/750',
+    'security': 'https://picsum.photos/seed/security/1260/750',
+    'car': 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?q=80&w=1260&auto=format&fit=crop'
   };
 
   const src = images[query] || images['campus'];

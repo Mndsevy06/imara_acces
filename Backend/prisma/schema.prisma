@@ -194,4 +194,5 @@ enum ScanSource {
 enum ConfigStatus {
   LOCKED
   EDITABLE
+  ARCHIVED
 }

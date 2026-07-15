@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Button, Input } from '../components/UI';
-import { ShieldCheck, Mail, Lock } from 'lucide-react';
+import imaraLogo from '../assets/imara.jpg';
+import { Mail, Lock } from 'lucide-react';
 import { ThemeToggle } from '../components/Common';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useStore';
@@ -56,8 +57,8 @@ export function LoginScreen() {
       <div className="flex flex-col p-8 sm:p-12 w-full max-w-md bg-bg-secondary rounded-3xl shadow-xl border border-border">
         <div className="w-full space-y-12">
           <div className="space-y-4">
-            <div className="w-12 h-12 bg-accent-primary rounded-xl flex items-center justify-center">
-              <ShieldCheck size={24} className="text-white" />
+            <div className="w-20 h-20 rounded-xl overflow-hidden flex items-center justify-center mx-auto mb-4">
+              <img src={imaraLogo} alt="Logo Imara" className="w-full h-full object-cover" />
             </div>
             <div>
               <h2 className="text-3xl font-bold tracking-tight">Connexion</h2>

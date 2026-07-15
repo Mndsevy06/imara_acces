@@ -14,7 +14,8 @@ import {
   Map as MapIcon, 
   Route as RouteIcon,
   Info,
-  ArrowRight
+  ArrowRight,
+  PowerOff
 } from 'lucide-react';
 import { Configuration, CardReader, Agent } from '../types';
 import { cn } from '../lib/utils';
@@ -258,9 +259,15 @@ export function ConfigurationsScreen() {
       return;
     }
 
+    const missingReaderAssignments = agentAssignments.filter(a => a.enabled && !a.readerId);
+    if (missingReaderAssignments.length > 0) {
+      setError('Veuillez sélectionner un lecteur pour tous les agents que vous avez assignés.');
+      return;
+    }
+
     const enabledAssignments = agentAssignments
       .filter((assignment) => assignment.enabled)
-      .filter((assignment) => assignment.readerId && selectedReaderIds.includes(assignment.readerId));
+      .filter((assignment) => selectedReaderIds.includes(assignment.readerId));
 
     setIsSaving(true);
     setError(null);
@@ -346,7 +353,7 @@ export function ConfigurationsScreen() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette configuration ?')) return;
+    if (!window.confirm('Êtes-vous sûr de vouloir désactiver cette configuration ?')) return;
 
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/configurations/${id}`, {
@@ -375,10 +382,25 @@ export function ConfigurationsScreen() {
       };
 
       if (isEdit) {
-        // Modifier un parking du staging
-        setStagingParkings(prev => prev.map(p => p.id === newParkingData.id ? parkingData : p));
+        // Is it a staging parking or DB parking?
+        const isStaging = stagingParkings.some(p => p.id === newParkingData.id);
+        if (isStaging) {
+          setStagingParkings(prev => prev.map(p => p.id === newParkingData.id ? parkingData : p));
+        } else {
+          // It's a DB parking! Call PUT api!
+          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/parkings/${newParkingData.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: parkingData.name,
+              type: parkingData.type,
+              capacity: parkingData.capacity
+            })
+          });
+          if (!response.ok) throw new Error('Erreur lors de la modification');
+          await fetchData();
+        }
       } else {
-        // Ajouter un nouveau parking au staging
         setStagingParkings(prev => [...prev, parkingData]);
       }
 
@@ -473,7 +495,8 @@ export function ConfigurationsScreen() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {configs.map((config) => {
             const isCreator = config.creatorId === currentUser?.id;
-            const canEdit = config.status === 'EDITABLE' || isCreator;
+            // Seul le créateur peut modifier, ET la configuration doit être en mode "Permettre modification" (EDITABLE) ou "Désactivée" (ARCHIVED)
+            const canEdit = (config.status === 'EDITABLE' || config.status === 'ARCHIVED') && isCreator;
 
             return (
               <Card key={config.id} className="group p-6 hover:shadow-xl transition-all border-l-4 border-l-transparent hover:border-l-accent-primary overflow-hidden relative">
@@ -496,10 +519,12 @@ export function ConfigurationsScreen() {
                     </div>
                     <div className={cn(
                       "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 border shadow-sm",
-                      config.status === 'LOCKED' ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-emerald-100 text-emerald-700 border-emerald-200"
+                      config.status === 'LOCKED' ? "bg-amber-100 text-amber-700 border-amber-200" : 
+                      config.status === 'ARCHIVED' ? "bg-slate-100 text-slate-700 border-slate-200" :
+                      "bg-emerald-100 text-emerald-700 border-emerald-200"
                     )}>
-                      {config.status === 'LOCKED' ? <Lock size={12} /> : <Unlock size={12} />}
-                      {config.status === 'LOCKED' ? 'Verrouillée' : 'Éditable'}
+                      {config.status === 'LOCKED' ? <Lock size={12} /> : config.status === 'ARCHIVED' ? <Trash2 size={12} /> : <Unlock size={12} />}
+                      {config.status === 'LOCKED' ? 'Verrouillée' : config.status === 'ARCHIVED' ? 'Désactivée' : 'Éditable'}
                     </div>
                   </div>
                   
@@ -538,16 +563,17 @@ export function ConfigurationsScreen() {
                     <Button 
                       variant="outline" 
                       size="lg" 
-                      icon={Trash2} 
-                      className="text-danger border-danger/20 hover:bg-danger/5" 
+                      icon={PowerOff} 
+                      className="text-amber-500 border-amber-500/20 hover:bg-amber-500/5" 
                       onClick={() => handleDelete(config.id)}
                       disabled={!canEdit}
+                      title="Désactiver"
                     />
                   </div>
                   
-                  {!canEdit && (
+                  {!canEdit && config.status !== 'ARCHIVED' && (
                     <p className="text-[10px] text-amber-500 mt-2 font-bold flex items-center justify-center">
-                      Seul le créateur peut modifier ou supprimer.
+                      {config.status === 'LOCKED' ? 'Configuration figée (non modifiable).' : 'Seul le créateur peut modifier cette configuration.'}
                     </p>
                   )}
                 </div>
@@ -614,6 +640,13 @@ export function ConfigurationsScreen() {
                     <X size={20} />
                  </button>
               </div>
+
+              {error && (
+                <div className="mx-12 mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 flex items-center gap-3">
+                  <Info size={20} />
+                  <p>{error}</p>
+                </div>
+              )}
 
               {/* Onboarding Content */}
               <main className="flex-1 overflow-y-auto p-12 bg-transparent">

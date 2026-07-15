@@ -4,52 +4,23 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await bcrypt.hash('admin123', 10);
+  // On génère le hash pour le mot de passe "12345678"
+  const passwordHash = await bcrypt.hash('12345678', 10);
 
-  // Create Admin
+  // Création d'un seul utilisateur (Admin par défaut pour avoir tous les accès)
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@imara.cd' },
+    where: { email: 'a@gmail.com' },
     update: {},
     create: {
-      email: 'admin@imara.cd',
-      name: 'Super Admin',
+      email: 'a@gmail.com',
+      name: 'Admin',
       passwordHash: passwordHash,
       role: 'ADMIN',
     },
   });
 
-  // Create Agent
-  const agentUser = await prisma.user.upsert({
-    where: { email: 'agent@imara.cd' },
-    update: {},
-    create: {
-      email: 'agent@imara.cd',
-      name: 'Agent Mutombo',
-      passwordHash: passwordHash,
-      role: 'AGENT',
-      agent: {
-        create: {
-          portail: 'Entrée Principale',
-          shiftStart: '08:00',
-          shiftEnd: '16:00',
-        }
-      }
-    },
-  });
-
-  // Create Member
-  const member = await prisma.user.upsert({
-    where: { licensePlate: 'AA-482-BC' },
-    update: {},
-    create: {
-      name: 'Jean Kabamba',
-      role: 'MEMBER',
-      licensePlate: 'AA-482-BC',
-    },
-  });
-
-  console.log('Seed completed:');
-  console.log({ admin, agentUser, member });
+  console.log('Seed completed. Utilisateur créé:');
+  console.log(admin);
 }
 
 main()

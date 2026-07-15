@@ -225,30 +225,9 @@ export async function DELETE(
     const { id } = await params;
 
     await db.$transaction(async (tx) => {
-      await tx.routingRule.deleteMany({
-        where: { configurationId: id },
-      });
-
-      await tx.agent.updateMany({
-        where: { configurationId: id },
-        data: {
-          configurationId: null,
-          readerId: null,
-        },
-      });
-
-      await tx.cardReader.updateMany({
-        where: { configurationId: id },
-        data: { configurationId: null },
-      });
-
-      await tx.parkingZone.updateMany({
-        where: { configurationId: id },
-        data: { configurationId: null },
-      });
-
-      await tx.configuration.delete({
+      await tx.configuration.update({
         where: { id },
+        data: { status: 'ARCHIVED' }
       });
     });
 

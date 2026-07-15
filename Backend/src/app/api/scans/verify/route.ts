@@ -181,7 +181,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const shouldEnforceReaderValidation = false; // Désactivé pour permettre le scan téléphonique sans erreur "Lecteur non configuré" ou "Agent inactif"
+    // Activé pour s'assurer que la validation stricte de la configuration est respectée (si la configuration n'est pas "LOCKED", on rejette)
+    const shouldEnforceReaderValidation = true;
 
     if (shouldEnforceReaderValidation && (readerNotConfigured || validAgents.length === 0)) {
       const reason = readerNotConfigured
