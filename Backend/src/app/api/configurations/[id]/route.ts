@@ -114,6 +114,13 @@ export async function PATCH(
         },
       });
 
+      if (status === 'LOCKED') {
+        await tx.configuration.updateMany({
+          where: { id: { not: id }, status: 'LOCKED' },
+          data: { status: 'EDITABLE' },
+        });
+      }
+
       let effectiveReaderIds = readerIds;
 
       if (shouldSyncReaders) {

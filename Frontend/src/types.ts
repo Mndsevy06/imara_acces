@@ -40,7 +40,7 @@ export interface Configuration {
   id: string;
   name: string;
   description: string;
-  status: 'LOCKED' | 'EDITABLE';
+  status: 'LOCKED' | 'EDITABLE' | 'ARCHIVED';
   createdAt: string;
   agentCount: number;
   parkingCount: number;
@@ -64,6 +64,7 @@ export interface Agent {
   shiftStart: string;
   shiftEnd: string;
   readerId?: string;
+  configurationId?: string;
   user?: User;
   reader?: CardReader;
 }

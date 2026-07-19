@@ -76,7 +76,7 @@ export function ConfigurationsScreen() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    status: 'EDITABLE' as 'LOCKED' | 'EDITABLE'
+    status: 'EDITABLE' as Configuration['status']
   });
 
   const fetchData = async () => {
@@ -102,6 +102,7 @@ export function ConfigurationsScreen() {
           shiftStart: user?.agent?.shiftStart || '08:00',
           shiftEnd: user?.agent?.shiftEnd || '16:00',
           readerId: user?.agent?.readerId || undefined,
+          configurationId: user?.agent?.configurationId || undefined,
           user: {
             id: user?.id,
             name: user?.name || 'Agent',
@@ -154,16 +155,7 @@ export function ConfigurationsScreen() {
     );
   }, [agents, showModal, editingConfig]);
 
-  useEffect(() => {
-    setAgentAssignments((prev) =>
-      prev.map((assignment) => {
-        if (assignment.readerId && !selectedReaderIds.includes(assignment.readerId)) {
-          return { ...assignment, readerId: '', enabled: false };
-        }
-        return assignment;
-      })
-    );
-  }, [selectedReaderIds]);
+
 
   const handleEdit = async (config: Configuration) => {
     setEditingConfig(config);
@@ -810,10 +802,17 @@ export function ConfigurationsScreen() {
                                           type="button"
                                           onClick={() => {
                                             setSelectedReaderIds((prev) => {
-                                              if (prev.includes(reader.id)) {
-                                                return prev.filter((id) => id !== reader.id);
+                                              const isSelected = prev.includes(reader.id);
+                                              const newReaderIds = isSelected 
+                                                ? prev.filter((id) => id !== reader.id)
+                                                : [...prev, reader.id];
+                                              
+                                              if (isSelected) {
+                                                setAgentAssignments(agents => agents.map(a => 
+                                                  a.readerId === reader.id ? { ...a, readerId: '', enabled: false } : a
+                                                ));
                                               }
-                                              return [...prev, reader.id];
+                                              return newReaderIds;
                                             });
                                           }}
                                           className={cn(
@@ -877,14 +876,16 @@ export function ConfigurationsScreen() {
                             <p className="text-sm text-text-muted italic p-6 bg-bg-surface rounded-2xl border border-dashed border-border text-center">
                               Selectionnez d'abord au moins un lecteur a l'etape precedente.
                             </p>
-                           ) : (
+                           ) : (() => {
+                             const availableAgents = agents.filter(agent => !agent.configurationId || agent.configurationId === editingConfig?.id);
+                             return (
                             <div className="space-y-3">
-                              {agents.length === 0 ? (
+                              {availableAgents.length === 0 ? (
                                <p className="text-sm text-text-muted italic p-6 bg-bg-surface rounded-2xl border border-dashed border-border text-center">
-                                Aucun agent disponible. Creez vos agents dans Gestion des Agents.
+                                Aucun agent disponible. Creez vos agents dans Gestion des Agents ou liberez-les d'autres configurations.
                                </p>
                               ) : (
-                               agents.map((agent) => {
+                               availableAgents.map((agent) => {
                                 const draft = agentAssignments.find((assignment) => assignment.agentId === agent.id);
                                 const isEnabled = Boolean(draft?.enabled);
                                 return (
@@ -1006,11 +1007,12 @@ export function ConfigurationsScreen() {
                                     </div>
                                    )}
                                   </div>
-                                );
-                               })
+                                 );
+                                })
                               )}
                             </div>
-                           )}
+                            );
+                           })()}
                           </motion.div>
                         )}
                       </AnimatePresence>

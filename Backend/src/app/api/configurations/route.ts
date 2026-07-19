@@ -103,6 +103,13 @@ export async function POST(req: Request) {
         },
       });
 
+      if (createdConfig.status === 'LOCKED') {
+        await tx.configuration.updateMany({
+          where: { id: { not: createdConfig.id }, status: 'LOCKED' },
+          data: { status: 'EDITABLE' },
+        });
+      }
+
       await tx.cardReader.updateMany({
         where: { id: { in: readerIds } },
         data: { configurationId: createdConfig.id },

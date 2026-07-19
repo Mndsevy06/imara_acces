@@ -29,16 +29,11 @@ export function Card({ children, className, animate = true, ...props }: CardProp
   );
 }
 
-interface ButtonProps {
-  children?: React.ReactNode;
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   icon?: LucideIcon;
   loading?: boolean;
-  className?: string;
-  onClick?: any;
-  type?: "button" | "submit" | "reset";
-  disabled?: boolean;
 }
 
 export function Button({ 

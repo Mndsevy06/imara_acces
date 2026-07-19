@@ -186,7 +186,7 @@ export async function POST(req: Request) {
 
     if (shouldEnforceReaderValidation && (readerNotConfigured || validAgents.length === 0)) {
       const reason = readerNotConfigured
-        ? 'Lecteur non configuré'
+        ? 'Lecteur non configuré ou configuration en brouillon'
         : validAgents.length === 0 && reader?.configuration?.status === 'LOCKED'
         ? (() => {
             const now = currentHHmm();
@@ -203,6 +203,10 @@ export async function POST(req: Request) {
             return 'Agent inactif';
           })()
         : 'Lecteur non configuré';
+
+      if (readerNotConfigured) {
+        return NextResponse.json({ status: 'FAILED', reason }, { status: 403 });
+      }
 
       const log = await db.accessLog.create({
         data: {
