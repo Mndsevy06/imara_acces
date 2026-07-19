@@ -9,7 +9,6 @@ interface CardProps {
   animate?: boolean;
   onClick?: () => void;
   style?: React.CSSProperties;
-  key?: any;
 }
 
 export function Card({ children, className, animate = true, ...props }: CardProps) {
@@ -95,9 +94,10 @@ interface InputProps {
 }
 
 export function Input({ label, icon: Icon, error, className, ...props }: InputProps) {
+  const id = React.useId();
   return (
     <div className="space-y-1.5 w-full">
-      {label && <label className="text-sm font-medium text-text-secondary ml-1">{label}</label>}
+      {label && <label htmlFor={id} className="text-sm font-medium text-text-secondary ml-1">{label}</label>}
       <div className="relative group">
         {Icon && (
           <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-accent-primary transition-colors">
@@ -105,6 +105,7 @@ export function Input({ label, icon: Icon, error, className, ...props }: InputPr
           </div>
         )}
         <input
+          id={id}
           className={cn(
             "w-full bg-bg-surface border-border border rounded-xl py-3 px-4 outline-none transition-all placeholder:text-text-muted focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/10 text-text-primary",
             Icon && "pl-11",

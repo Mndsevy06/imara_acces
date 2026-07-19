@@ -1231,7 +1231,7 @@ export function ConfigurationsScreen() {
                 <h3 className="text-xl font-bold">
                   {(readers.some(r => r.id === newReaderData.id) || stagingReaders.some(r => r.id === newReaderData.id)) ? 'Modifier le Lecteur' : 'Nouveau Lecteur'}
                 </h3>
-                <button onClick={() => setShowReaderModal(false)} className="p-2 text-text-muted hover:text-text-primary" title="Fermer" aria-label="Fermer">
+                <button type="button" onClick={() => setShowReaderModal(false)} className="p-2 text-text-muted hover:text-text-primary" title="Fermer" aria-label="Fermer">
                   <X />
                 </button>
               </div>

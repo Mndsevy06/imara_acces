@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { socketService } from '@/lib/socket';
 
 type AgentAssignmentPayload = {
   agentId: string;
@@ -232,6 +233,20 @@ export async function PATCH(
 
     if (!config) {
       return new NextResponse('Not Found', { status: 404 });
+    }
+
+    // Notifier chaque agent affecté en temps réel pour mettre à jour leurs horaires sans redémarrage
+    if (shouldSyncAssignments && config.agents) {
+      for (const agent of config.agents) {
+        socketService.toAgents([agent.id], 'agent:updated', {
+          id: agent.id,
+          shiftStart: agent.shiftStart,
+          shiftEnd: agent.shiftEnd,
+          readerId: agent.readerId,
+          status: agent.status,
+          configurationId: agent.configurationId,
+        });
+      }
     }
 
     return NextResponse.json(config);

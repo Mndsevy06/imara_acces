@@ -11,7 +11,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const socketRef = useRef<Socket | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const { setConnected, addScan, updateParking, setLastDiscoveredReaderId } = useSocketStore();
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
 
   useEffect(() => {
     const rawSocketUrl = import.meta.env.VITE_WS_URL
@@ -68,6 +68,34 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     socket.on('reader:discovered', (data: { readerId: string }) => {
       console.log('[Socket] Reader discovered:', data.readerId);
       setLastDiscoveredReaderId(data.readerId);
+    });
+
+    // Mise à jour en temps réel des horaires de l'agent sans redémarrage de l'app
+    socket.on('agent:updated', (updatedAgent: {
+      id: string;
+      shiftStart: string;
+      shiftEnd: string;
+      readerId: string | null;
+      status: string;
+      configurationId: string | null;
+    }) => {
+      console.log('[Socket] Agent updated received:', updatedAgent);
+      // On ne met à jour que si c'est bien l'agent connecté
+      const currentAgent = useAuthStore.getState().user;
+      if (currentAgent?.agent?.id === updatedAgent.id) {
+        setUser({
+          ...currentAgent,
+          agent: {
+            ...currentAgent.agent,
+            shiftStart: updatedAgent.shiftStart,
+            shiftEnd: updatedAgent.shiftEnd,
+            readerId: updatedAgent.readerId ?? currentAgent.agent.readerId,
+            status: updatedAgent.status as any,
+            configurationId: updatedAgent.configurationId ?? currentAgent.agent.configurationId,
+          },
+        });
+        console.log('[Socket] ✅ Horaires agent mis à jour :', updatedAgent.shiftStart, '→', updatedAgent.shiftEnd);
+      }
     });
 
     socketRef.current = socket;
