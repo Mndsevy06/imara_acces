@@ -6,7 +6,7 @@ Il faut imaginer cette architecture comme un restaurant, où chaque élément a 
 
 *   **Le Cerveau central (Le Backend sur PC Windows) :** C'est le serveur (Node.js/PostgreSQL) qui tourne sur le PC. Il possède une **adresse IP Fixe** (très important pour que les autres le trouvent) et écoute sur le port `8012`. C'est lui qui contient la base de données (les badges valides, le nombre de places restantes, etc.).
 *   **Les Yeux et les Bras (L'ESP32 au portail) :** C'est le boîtier physique (IoT) équipé du lecteur de badge (RFID/NFC) et connecté à la barrière et aux LEDs (Rouge/Verte). Son seul but est de lire un badge, de l'envoyer au "Cerveau" (Backend) via le Wi-Fi, et d'attendre l'ordre pour ouvrir ou non.
-*   **Les Moniteurs (Les applications mobiles Capacitor) :**
+*   **Less Moniteurs (Les applications mobiles Capacitor) :**
     *   **Pour l'Agent :** Son téléphone est connecté au Cerveau. Quand l'ESP32 lit un badge, le Cerveau notifie instantanément le téléphone de l'agent qui affiche l'identité de la personne et si c'est bon ou refusé.
     *   **Pour le Conducteur (Usager) :** Son application écoute aussi le Cerveau. Dès que le scan est validé, l'application reçoit l'ordre d'afficher la carte et de lancer le guidage vocal vers sa place.
 
