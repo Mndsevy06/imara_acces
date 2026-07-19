@@ -82,6 +82,13 @@ export async function GET() {
         scansToday,
         activeAgents
       },
+      parkings: parkings.map(p => ({
+        id: p.id,
+        name: p.name,
+        type: p.type,
+        current: p.currentCount,
+        total: p.capacity,
+      })),
       parkingData,
       recentScans: formattedScans
     });

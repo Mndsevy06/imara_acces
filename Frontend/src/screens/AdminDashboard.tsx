@@ -145,31 +145,41 @@ export function AdminDashboard() {
           <div className="p-6 border-b border-border">
             <h3 className="font-bold text-lg">Capacité des Parkings</h3>
           </div>
-          <div className="p-6 space-y-8">
-            <CapacityGauge 
-              label="Zone A (Professeurs)" 
-              current={mergedParkingData['zone-a']?.current ?? 0} 
-              total={mergedParkingData['zone-a']?.total ?? 50} 
-              color="accent" 
-            />
-            <CapacityGauge 
-              label="Zone ECOPO (Étudiants)" 
-              current={mergedParkingData['ecopo']?.current ?? 0} 
-              total={mergedParkingData['ecopo']?.total ?? 100} 
-              color="indigo" 
-            />
-            <CapacityGauge 
-              label="Zone B (Visiteurs)" 
-              current={mergedParkingData['zone-b']?.current ?? 0} 
-              total={mergedParkingData['zone-b']?.total ?? 30} 
-              color="warning" 
-            />
-            <CapacityGauge 
-              label="Gym / Église" 
-              current={mergedParkingData['church']?.current ?? 0} 
-              total={mergedParkingData['church']?.total ?? 20} 
-              color="success" 
-            />
+          <div className="p-6 space-y-6">
+            {isLoading ? (
+              <div className="space-y-6">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="space-y-2 animate-pulse">
+                    <div className="flex justify-between">
+                      <div className="h-4 bg-bg-surface rounded w-32" />
+                      <div className="h-4 bg-bg-surface rounded w-12" />
+                    </div>
+                    <div className="h-3 bg-bg-surface rounded-full" />
+                  </div>
+                ))}
+              </div>
+            ) : (dashboardData?.parkings ?? []).length === 0 ? (
+              <p className="text-sm text-text-muted italic text-center py-8">
+                Aucun parking enregistré dans la base de données.
+              </p>
+            ) : (
+              (dashboardData?.parkings ?? []).map((parking: any, idx: number) => {
+                // Mise à jour temps réel depuis le socket si disponible
+                const socketData = socketParkingData[parking.id];
+                const current = socketData?.current ?? parking.current;
+                const total = parking.total > 0 ? parking.total : 1;
+                const colors = ['accent', 'indigo', 'warning', 'success'];
+                return (
+                  <CapacityGauge
+                    key={parking.id}
+                    label={parking.name}
+                    current={current}
+                    total={parking.total}
+                    color={colors[idx % colors.length]}
+                  />
+                );
+              })
+            )}
           </div>
         </Card>
       </div>

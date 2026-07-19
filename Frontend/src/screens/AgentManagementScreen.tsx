@@ -311,6 +311,7 @@ export function AgentManagementScreen() {
                     value={formData.email}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, email: e.target.value})}
                     required 
+                    autoComplete="off"
                   />
                   {!editingAgent && (
                     <Input 
@@ -319,6 +320,7 @@ export function AgentManagementScreen() {
                       value={formData.password}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, password: e.target.value})}
                       required 
+                      autoComplete="new-password"
                     />
                   )}
                 </div>

@@ -597,6 +597,7 @@ export function UserManagementScreen() {
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         required 
+                        autoComplete="off"
                         className="bg-bg-surface h-14"
                       />
                     )}
@@ -610,6 +611,7 @@ export function UserManagementScreen() {
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       required 
+                      autoComplete="new-password"
                       className="bg-bg-surface h-14"
                     />
                   )}

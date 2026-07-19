@@ -91,6 +91,7 @@ interface InputProps {
   min?: string | number;
   max?: string | number;
   step?: string | number;
+  autoComplete?: string;
 }
 
 export function Input({ label, icon: Icon, error, className, ...props }: InputProps) {
