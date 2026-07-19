@@ -121,7 +121,12 @@ export async function POST(req: Request) {
         }
 
         const updated = await tx.agent.updateMany({
-          where: { id: assignment.agentId },
+          where: { 
+            OR: [
+              { id: assignment.agentId },
+              { userId: assignment.agentId }
+            ]
+          },
           data: {
             configurationId: createdConfig.id,
             readerId: assignment.readerId,

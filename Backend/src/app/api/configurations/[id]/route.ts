@@ -164,7 +164,12 @@ export async function PATCH(
           }
 
           const updated = await tx.agent.updateMany({
-            where: { id: assignment.agentId },
+            where: { 
+              OR: [
+                { id: assignment.agentId },
+                { userId: assignment.agentId }
+              ]
+            },
             data: {
               configurationId: id,
               readerId: assignment.readerId,
