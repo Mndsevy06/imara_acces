@@ -1,0 +1,135 @@
+react-dom_client.js?v=bd5ed095:9714 Uncaught NotFoundError: Failed to execute 'insertBefore' on 'Node': The node before which the new node is to be inserted is not a child of this node.
+    at insertOrAppendPlacementNode (react-dom_client.js?v=bd5ed095:9714:50)
+    at commitPlacement (react-dom_client.js?v=bd5ed095:9745:13)
+    at runWithFiberInDEV (react-dom_client.js?v=bd5ed095:997:72)
+    at commitReconciliationEffects (react-dom_client.js?v=bd5ed095:10772:13)
+    at commitMutationEffectsOnFiber (react-dom_client.js?v=bd5ed095:10548:13)
+    at recursivelyTraverseMutationEffects (react-dom_client.js?v=bd5ed095:10396:13)
+    at commitMutationEffectsOnFiber (react-dom_client.js?v=bd5ed095:10547:13)
+    at recursivelyTraverseMutationEffects (react-dom_client.js?v=bd5ed095:10396:13)
+    at commitMutationEffectsOnFiber (react-dom_client.js?v=bd5ed095:10405:13)
+    at recursivelyTraverseMutationEffects (react-dom_client.js?v=bd5ed095:10396:13)
+insertOrAppendPlacementNode @ react-dom_client.js?v=bd5ed095:9714
+commitPlacement @ react-dom_client.js?v=bd5ed095:9745
+runWithFiberInDEV @ react-dom_client.js?v=bd5ed095:997
+commitReconciliationEffects @ react-dom_client.js?v=bd5ed095:10772
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10548
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10547
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10547
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10547
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10547
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10547
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10746
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10547
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10418
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10746
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10547
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10746
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10746
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10547
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10547
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10547
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10746
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10746
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10746
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10746
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10746
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10746
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10405
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10746
+recursivelyTraverseMutationEffects @ react-dom_client.js?v=bd5ed095:10396
+commitMutationEffectsOnFiber @ react-dom_client.js?v=bd5ed095:10600
+flushMutationEffects @ react-dom_client.js?v=bd5ed095:12822
+commitRoot @ react-dom_client.js?v=bd5ed095:12802
+commitRootWhenReady @ react-dom_client.js?v=bd5ed095:12016
+performWorkOnRoot @ react-dom_client.js?v=bd5ed095:11950
+performSyncWorkOnRoot @ react-dom_client.js?v=bd5ed095:13517
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=bd5ed095:13414
+processRootScheduleInMicrotask @ react-dom_client.js?v=bd5ed095:13437
+(anonymous) @ react-dom_client.js?v=bd5ed095:13531
+<div>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=bd5ed095:247
+(anonymous) @ UI.tsx:72
+react_stack_bottom_frame @ react-dom_client.js?v=bd5ed095:18509
+renderWithHooksAgain @ react-dom_client.js?v=bd5ed095:5729
+renderWithHooks @ react-dom_client.js?v=bd5ed095:5665
+updateFunctionComponent @ react-dom_client.js?v=bd5ed095:7475
+beginWork @ react-dom_client.js?v=bd5ed095:8525
+runWithFiberInDEV @ react-dom_client.js?v=bd5ed095:997
+performUnitOfWork @ react-dom_client.js?v=bd5ed095:12561
+workLoopSync @ react-dom_client.js?v=bd5ed095:12424
+renderRootSync @ react-dom_client.js?v=bd5ed095:12408
+performWorkOnRoot @ react-dom_client.js?v=bd5ed095:11766
+performSyncWorkOnRoot @ react-dom_client.js?v=bd5ed095:13517
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=bd5ed095:13414
+processRootScheduleInMicrotask @ react-dom_client.js?v=bd5ed095:13437
+(anonymous) @ react-dom_client.js?v=bd5ed095:13531
+UI.tsx:72 An error occurred in the <div> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+react-dom_client.js?v=bd5ed095:9714 Uncaught NotFoundError: Failed to execute 'insertBefore' on 'Node': The node before which the new node is to be inserted is not a child of this node.
+
+UI.tsx:72 An error occurred in the <div> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries

@@ -70,7 +70,7 @@ export function Button({
     >
       {loading ? (
         <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-      ) : Icon && <Icon size={18} />}
+      ) : Icon ? <Icon size={18} /> : null}
       {children}
     </button>
   );
