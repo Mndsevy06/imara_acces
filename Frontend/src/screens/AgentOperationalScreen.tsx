@@ -362,41 +362,34 @@ export function AgentOperationalScreen() {
             <ShieldCheck size={20} />
           </div>
           <div>
-          <p className="text-xs font-bold text-text-muted uppercase tracking-wider">Agent en service</p>
-          <p className="font-bold text-sm truncate">{user?.name || 'Agent Mobile'}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className={cn(
-            'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
-            (() => {
-              const currentHour = currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-              const start = user?.agent?.shiftStart || '08:00';
-              const end = user?.agent?.shiftEnd || '16:00';
-              const isWithinShift = start <= end 
-                ? (currentHour >= start && currentHour <= end)
-                : (currentHour >= start || currentHour <= end);
-              return isWithinShift ? 'bg-accent-primary/10 text-accent-primary' : 'bg-amber-500/10 text-amber-500';
-            })()
-          )}>
-            <Clock size={10} />
             {(() => {
               const currentHour = currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
               const start = user?.agent?.shiftStart || '08:00';
               const end = user?.agent?.shiftEnd || '16:00';
-              const isWithinShift = start <= end 
+              const isWithinShift = start <= end
                 ? (currentHour >= start && currentHour <= end)
                 : (currentHour >= start || currentHour <= end);
-              return isWithinShift ? 'Opérationnel' : 'Hors service';
+              return (
+                <div className={cn(
+                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase mb-0.5',
+                  isWithinShift ? 'bg-accent-primary/10 text-accent-primary' : 'bg-amber-500/10 text-amber-500'
+                )}>
+                  <Clock size={10} />
+                  {isWithinShift ? 'Opérationnel' : 'Hors service'}
+                </div>
+              );
             })()}
+            <p className="font-bold text-sm truncate">{user?.name || 'Agent Mobile'}</p>
           </div>
-          <div className={cn(
-            'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
-            isConnected ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger',
-          )}>
-            {isConnected ? <Wifi size={10} /> : <WifiOff size={10} />}
-            {isConnected ? 'En ligne' : 'Hors ligne'}
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
+              isConnected ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger',
+            )}>
+              {isConnected ? <Wifi size={10} /> : <WifiOff size={10} />}
+              {isConnected ? 'En ligne' : 'Hors ligne'}
+            </div>
           </div>
-        </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right flex flex-col items-end">
