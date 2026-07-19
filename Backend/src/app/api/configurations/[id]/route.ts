@@ -163,25 +163,38 @@ export async function PATCH(
             throw new Error(`Reader ${assignment.readerId} is not part of this configuration`);
           }
 
-          const updated = await tx.agent.updateMany({
+          const user = await tx.user.findFirst({
             where: { 
               OR: [
                 { id: assignment.agentId },
-                { userId: assignment.agentId }
+                { agent: { id: assignment.agentId } }
               ]
-            },
-            data: {
+            }
+          });
+
+          if (!user) {
+            throw new Error(`User for agent assignment ${assignment.agentId} not found`);
+          }
+
+          await tx.agent.upsert({
+            where: { userId: user.id },
+            update: {
               configurationId: id,
               readerId: assignment.readerId,
               shiftStart: assignment.shiftStart,
               shiftEnd: assignment.shiftEnd,
               status: assignment.status || 'OFFLINE',
             },
+            create: {
+              userId: user.id,
+              portail: 'Non défini',
+              configurationId: id,
+              readerId: assignment.readerId,
+              shiftStart: assignment.shiftStart,
+              shiftEnd: assignment.shiftEnd,
+              status: assignment.status || 'OFFLINE',
+            }
           });
-
-          if (updated.count === 0) {
-            throw new Error(`Agent ${assignment.agentId} not found`);
-          }
         }
       }
 

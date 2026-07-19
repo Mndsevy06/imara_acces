@@ -365,7 +365,7 @@ export function AgentOperationalScreen() {
           <div className={cn(
             'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
             (() => {
-              const currentHour = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const currentHour = currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
               const start = user?.agent?.shiftStart || '08:00';
               const end = user?.agent?.shiftEnd || '16:00';
               const isWithinShift = start <= end 
@@ -376,7 +376,7 @@ export function AgentOperationalScreen() {
           )}>
             <Clock size={10} />
             {(() => {
-              const currentHour = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const currentHour = currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
               const start = user?.agent?.shiftStart || '08:00';
               const end = user?.agent?.shiftEnd || '16:00';
               const isWithinShift = start <= end 

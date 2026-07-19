@@ -13,7 +13,11 @@ export async function DELETE(
     });
 
     return new NextResponse(null, { status: 204 });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      // Record already deleted or does not exist
+      return new NextResponse(null, { status: 204 });
+    }
     console.error('[READER_DELETE]', error);
     return new NextResponse('Internal Error', { status: 500 });
   }
