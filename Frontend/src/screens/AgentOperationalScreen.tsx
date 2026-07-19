@@ -174,7 +174,11 @@ export function AgentOperationalScreen() {
       const now = new Date();
       const currentHHmm = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
       
-      if (currentHHmm < shiftStart || currentHHmm > shiftEnd) {
+      const isWithinShift = shiftStart <= shiftEnd 
+        ? (currentHHmm >= shiftStart && currentHHmm <= shiftEnd)
+        : (currentHHmm >= shiftStart || currentHHmm <= shiftEnd);
+      
+      if (!isWithinShift) {
         showToast('ERROR', `Accès refusé : Vous êtes hors de votre horaire de service (${shiftStart} - ${shiftEnd})`);
         setIsNfcDetected(false);
         setIsWriting(false);
