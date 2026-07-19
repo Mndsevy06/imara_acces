@@ -18,3 +18,28 @@ export async function DELETE(
     return new NextResponse('Internal Error', { status: 500 });
   }
 }
+
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    const { label, location, type } = body;
+
+    const reader = await db.cardReader.update({
+      where: { id },
+      data: {
+        label,
+        location,
+        type,
+      },
+    });
+
+    return NextResponse.json(reader);
+  } catch (error) {
+    console.error('[READER_PUT]', error);
+    return new NextResponse('Internal Error', { status: 500 });
+  }
+}

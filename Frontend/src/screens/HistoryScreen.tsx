@@ -28,7 +28,7 @@ export function HistoryScreen() {
       user: raw.user?.name ?? raw.user ?? raw.userNameSnapshot ?? 'Inconnu',
       plate: raw.user?.licensePlate ?? raw.plate ?? raw.plateSnapshot ?? 'N/A',
       type: raw.type ?? raw.eventType,
-      parking: raw.parking?.name ?? raw.parking ?? 'Inconnu',
+      parking: (typeof raw.parking === 'object' && raw.parking !== null ? raw.parking.name || 'Inconnu' : raw.parking) || 'Inconnu',
       status: raw.status,
       reason: raw.reason ?? raw.failReason ?? undefined,
       source: raw.source ?? 'PHONE',

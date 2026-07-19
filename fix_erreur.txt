@@ -1,0 +1,11 @@
+Uncaught Error: Objects are not valid as a React child (found: object with keys {id, name, type, capacity, currentCount, configurationId}). If you meant to render a collection of children, use an array instead.
+    at throwOnInvalidObjectTypeImpl (react-dom_client.js?v=bd5ed095:4598:15)
+    at throwOnInvalidObjectType (react-dom_client.js?v=bd5ed095:4606:13)
+    at reconcileChildFibersImpl (react-dom_client.js?v=bd5ed095:5217:13)
+    at react-dom_client.js?v=bd5ed095:5237:35
+    at reconcileChildren (react-dom_client.js?v=bd5ed095:7182:53)
+    at beginWork (react-dom_client.js?v=bd5ed095:8701:104)
+    at runWithFiberInDEV (react-dom_client.js?v=bd5ed095:997:72)
+    at performUnitOfWork (react-dom_client.js?v=bd5ed095:12561:98)
+    at workLoopSync (react-dom_client.js?v=bd5ed095:12424:43)
+    at renderRootSync (react-dom_client.js?v=bd5ed095:12408:13)

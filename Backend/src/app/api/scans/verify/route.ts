@@ -4,7 +4,12 @@ import { socketService } from '@/lib/socket';
 
 // Compare HH:mm strings: "08:00" <= "14:30" <= "17:00"
 function isWithinShift(shiftStart: string, shiftEnd: string, current: string): boolean {
-  return current >= shiftStart && current <= shiftEnd;
+  if (shiftStart <= shiftEnd) {
+    return current >= shiftStart && current <= shiftEnd;
+  } else {
+    // Overnight shift (e.g., 20:00 to 04:00)
+    return current >= shiftStart || current <= shiftEnd;
+  }
 }
 
 function currentHHmm(): string {

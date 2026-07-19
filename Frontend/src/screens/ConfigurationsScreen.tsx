@@ -261,6 +261,15 @@ export function ConfigurationsScreen() {
       .filter((assignment) => assignment.enabled)
       .filter((assignment) => selectedReaderIds.includes(assignment.readerId));
 
+    if (formData.status === 'LOCKED') {
+      const alreadyLocked = configs.find(c => c.status === 'LOCKED' && c.id !== editingConfig?.id);
+      if (alreadyLocked) {
+        if (!window.confirm(`La configuration "${alreadyLocked.name}" est déjà active. Une seule configuration peut être figée (Active) à la fois. Si vous continuez, la configuration "${alreadyLocked.name}" deviendra un brouillon. Voulez-vous continuer ?`)) {
+          return;
+        }
+      }
+    }
+
     setIsSaving(true);
     setError(null);
 
@@ -427,6 +436,68 @@ export function ConfigurationsScreen() {
     }
   };
 
+  const handleSaveReader = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    try {
+      const isStaging = stagingReaders.some(r => r.id === newReaderData.id);
+      const isDb = readers.some(r => r.id === newReaderData.id);
+      
+      const readerData = {
+        ...newReaderData,
+        isStaging: !isDb,
+      };
+
+      if (isStaging) {
+        setStagingReaders(prev => prev.map(r => r.id === newReaderData.id ? readerData : r));
+      } else if (isDb) {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/readers/${newReaderData.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            label: readerData.label,
+            type: readerData.type,
+            location: readerData.location
+          })
+        });
+        if (!response.ok) throw new Error('Erreur lors de la modification du lecteur');
+        await fetchData();
+      } else {
+        setStagingReaders(prev => [...prev, readerData]);
+        setSelectedReaderIds(prev => prev.includes(newReaderData.id) ? prev : [...prev, newReaderData.id]);
+      }
+
+      setShowReaderModal(false);
+      setNewReaderData({ id: '', label: '', location: '', type: 'NFC' });
+    } catch (err: any) {
+      setError(err.message || "Erreur lors de l'enregistrement du lecteur");
+    }
+  };
+
+  const handleDeleteReader = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce lecteur ?')) return;
+    try {
+      const stagingReader = stagingReaders.find(r => r.id === id);
+      if (stagingReader) {
+        setStagingReaders(prev => prev.filter(r => r.id !== id));
+        setSelectedReaderIds(prev => prev.filter(selectedId => selectedId !== id));
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/readers/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Erreur lors de la suppression');
+      }
+      setSelectedReaderIds(prev => prev.filter(selectedId => selectedId !== id));
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const tabs = [
     { id: 'INFO', label: 'Informations', icon: Info },
     { id: 'PARKINGS', label: 'Parkings', icon: Building2 },
@@ -488,7 +559,7 @@ export function ConfigurationsScreen() {
           {configs.map((config) => {
             const isCreator = config.creatorId === currentUser?.id;
             // Seul le créateur peut modifier, ET la configuration doit être en mode "Permettre modification" (EDITABLE) ou "Désactivée" (ARCHIVED)
-            const canEdit = (config.status === 'EDITABLE' || config.status === 'ARCHIVED') && isCreator;
+            const canEdit = isCreator;
 
             return (
               <Card key={config.id} className="group p-6 hover:shadow-xl transition-all border-l-4 border-l-transparent hover:border-l-accent-primary overflow-hidden relative">
@@ -797,9 +868,12 @@ export function ConfigurationsScreen() {
                                     [...readers, ...stagingReaders].map((reader) => {
                                       const selected = selectedReaderIds.includes(reader.id);
                                       return (
-                                        <button
+                                        <div
                                           key={reader.id}
-                                          type="button"
+                                          className={cn(
+                                            'w-full flex items-center justify-between bg-bg-surface p-4 rounded-2xl border transition-all cursor-pointer',
+                                            selected ? 'border-accent-primary ring-2 ring-accent-primary/20' : 'border-border hover:border-accent-primary/40'
+                                          )}
                                           onClick={() => {
                                             setSelectedReaderIds((prev) => {
                                               const isSelected = prev.includes(reader.id);
@@ -815,29 +889,47 @@ export function ConfigurationsScreen() {
                                               return newReaderIds;
                                             });
                                           }}
-                                          className={cn(
-                                            'w-full text-left bg-bg-surface p-4 rounded-2xl border transition-all',
-                                            selected ? 'border-accent-primary ring-2 ring-accent-primary/20' : 'border-border hover:border-accent-primary/40'
-                                          )}
                                         >
-                                          <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                              <div className="w-10 h-10 bg-bg-secondary rounded-xl flex items-center justify-center border border-border">
-                                                <Cpu size={18} className="text-text-muted" />
-                                              </div>
-                                              <div>
-                                                <div className="flex items-center gap-2">
-                                                  <p className="font-bold text-sm">{reader.label}</p>
-                                                  {reader.isStaging && <span className="text-xs bg-accent-primary text-white px-2 py-0.5 rounded-lg font-bold">En attente</span>}
-                                                </div>
-                                                <p className="text-[10px] text-text-muted uppercase font-bold">{reader.type} • {reader.location}</p>
-                                              </div>
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-bg-secondary rounded-xl flex items-center justify-center border border-border">
+                                              <Cpu size={18} className="text-text-muted" />
                                             </div>
+                                            <div>
+                                              <div className="flex items-center gap-2">
+                                                <p className="font-bold text-sm">{reader.label}</p>
+                                                {reader.isStaging && <span className="text-xs bg-accent-primary text-white px-2 py-0.5 rounded-lg font-bold">En attente</span>}
+                                              </div>
+                                              <p className="text-[10px] text-text-muted uppercase font-bold">{reader.type} • {reader.location}</p>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-4">
                                             <div className={cn('text-xs font-black uppercase tracking-widest px-2 py-1 rounded-lg', selected ? 'bg-accent-primary text-white' : 'bg-bg-secondary text-text-muted border border-border')}>
                                               {selected ? 'Assigné' : 'Non assigné'}
                                             </div>
+                                            <div className="flex gap-2">
+                                              <button 
+                                                type="button" 
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setNewReaderData({ id: reader.id, label: reader.label, location: reader.location || '', type: reader.type });
+                                                  setShowReaderModal(true);
+                                                }}
+                                                className="p-2 text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
+                                                title="Modifier"
+                                              >
+                                                <Edit3 size={16} />
+                                              </button>
+                                              <button 
+                                                type="button" 
+                                                onClick={(e) => handleDeleteReader(reader.id, e)}
+                                                className="p-2 text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                                                title="Supprimer"
+                                              >
+                                                <Trash2 size={16} />
+                                              </button>
+                                            </div>
                                           </div>
-                                        </button>
+                                        </div>
                                       );
                                     })
                                   )}
@@ -1136,7 +1228,9 @@ export function ConfigurationsScreen() {
               className="relative w-full max-w-md bg-bg-secondary rounded-2xl shadow-2xl p-8 overflow-hidden"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold">Nouveau Lecteur</h3>
+                <h3 className="text-xl font-bold">
+                  {(readers.some(r => r.id === newReaderData.id) || stagingReaders.some(r => r.id === newReaderData.id)) ? 'Modifier le Lecteur' : 'Nouveau Lecteur'}
+                </h3>
                 <button onClick={() => setShowReaderModal(false)} className="p-2 text-text-muted hover:text-text-primary" title="Fermer" aria-label="Fermer">
                   <X />
                 </button>
@@ -1187,21 +1281,7 @@ export function ConfigurationsScreen() {
                     variant="primary" 
                     className="flex-1" 
                     disabled={!newReaderData.id || !newReaderData.label}
-                    onClick={() => {
-                      try {
-                        // Ajouter le lecteur au staging
-                        const readerData = {
-                          ...newReaderData,
-                          isStaging: true,
-                        };
-                        setStagingReaders((prev) => [...prev, readerData]);
-                        setSelectedReaderIds((prev) => prev.includes(newReaderData.id) ? prev : [...prev, newReaderData.id]);
-                        setShowReaderModal(false);
-                        setNewReaderData({ id: '', label: '', location: '', type: 'NFC' });
-                      } catch (err: any) {
-                        setError(err.message || 'Erreur lors de la création du lecteur');
-                      }
-                    }}
+                    onClick={() => handleSaveReader()}
                   >
                     Enregistrer
                   </Button>

@@ -120,7 +120,7 @@ export function AdminDashboard() {
                       scan.type === 'ENTRÉE' ? "text-blue-500" : "text-purple-500"
                     )}>{scan.type}</span>
                     <span>•</span>
-                    <span>{scan.parking}</span>
+                    <span>{typeof scan.parking === 'object' ? scan.parking?.name : scan.parking}</span>
                     {scan.reason && (
                       <>
                         <span>•</span>
