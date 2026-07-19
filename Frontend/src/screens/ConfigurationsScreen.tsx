@@ -965,146 +965,145 @@ export function ConfigurationsScreen() {
                            </div>
 
                            {selectedReaderIds.length === 0 ? (
-                            <p className="text-sm text-text-muted italic p-6 bg-bg-surface rounded-2xl border border-dashed border-border text-center">
-                              Selectionnez d'abord au moins un lecteur a l'etape precedente.
-                            </p>
-                           ) : (() => {
-                             const availableAgents = agents.filter(agent => !agent.configurationId || agent.configurationId === editingConfig?.id);
-                             return (
-                            <div className="space-y-3">
-                              {availableAgents.length === 0 ? (
-                               <p className="text-sm text-text-muted italic p-6 bg-bg-surface rounded-2xl border border-dashed border-border text-center">
-                                Aucun agent disponible. Creez vos agents dans Gestion des Agents ou liberez-les d'autres configurations.
-                               </p>
-                              ) : (
-                               availableAgents.map((agent) => {
-                                const draft = agentAssignments.find((assignment) => assignment.agentId === agent.id);
-                                const isEnabled = Boolean(draft?.enabled);
-                                return (
-                                  <div key={agent.id} className="bg-bg-surface p-4 rounded-2xl border border-border space-y-3">
-                                   <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-10 h-10 bg-bg-secondary rounded-xl flex items-center justify-center border border-border">
-                                       <Users size={18} className="text-text-muted" />
-                                      </div>
-                                      <div>
-                                       <p className="font-bold text-sm">{agent.user?.name || 'Agent'}</p>
-                                       <p className="text-[11px] text-text-muted">{agent.user?.email || 'Sans email'}</p>
-                                      </div>
-                                    </div>
-                                    <label className="flex items-center gap-2 text-xs font-bold uppercase text-text-secondary">
-                                      <input
-                                       type="checkbox"
-                                       checked={isEnabled}
-                                       onChange={(e) => {
-                                        setAgentAssignments((prev) => prev.map((assignment) =>
-                                          assignment.agentId === agent.id
-                                           ? { 
-                                               ...assignment, 
-                                               enabled: e.target.checked, 
-                                               readerId: e.target.checked 
-                                                 ? (selectedReaderIds.length === 1 ? selectedReaderIds[0] : assignment.readerId) 
-                                                 : '' 
-                                             }
-                                           : assignment
-                                        ));
-                                       }}
-                                       className="accent-accent-primary"
-                                      />
-                                      Assigner
-                                    </label>
-                                   </div>
+                             <p className="text-sm text-text-muted italic p-6 bg-bg-surface rounded-2xl border border-dashed border-border text-center">
+                               Selectionnez d'abord au moins un lecteur a l'etape precedente.
+                             </p>
+                           ) : (
+                             <div className="space-y-3">
+                               {agents.filter(agent => !agent.configurationId || agent.configurationId === editingConfig?.id).length === 0 ? (
+                                 <p className="text-sm text-text-muted italic p-6 bg-bg-surface rounded-2xl border border-dashed border-border text-center">
+                                   Aucun agent disponible. Creez vos agents dans Gestion des Agents ou liberez-les d'autres configurations.
+                                 </p>
+                               ) : (
+                                 agents
+                                   .filter(agent => !agent.configurationId || agent.configurationId === editingConfig?.id)
+                                   .map((agent) => {
+                                     const draft = agentAssignments.find((assignment) => assignment.agentId === agent.id);
+                                     const isEnabled = Boolean(draft?.enabled);
+                                     return (
+                                       <div key={agent.id} className="bg-bg-surface p-4 rounded-2xl border border-border space-y-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                         <div className="flex items-center gap-3">
+                                           <div className="w-10 h-10 bg-bg-secondary rounded-xl flex items-center justify-center border border-border">
+                                            <Users size={18} className="text-text-muted" />
+                                           </div>
+                                           <div>
+                                            <p className="font-bold text-sm">{agent.user?.name || 'Agent'}</p>
+                                            <p className="text-[11px] text-text-muted">{agent.user?.email || 'Sans email'}</p>
+                                           </div>
+                                         </div>
+                                         <label className="flex items-center gap-2 text-xs font-bold uppercase text-text-secondary">
+                                           <input
+                                            type="checkbox"
+                                            checked={isEnabled}
+                                            onChange={(e) => {
+                                             setAgentAssignments((prev) => prev.map((assignment) =>
+                                               assignment.agentId === agent.id
+                                                ? {
+                                                    ...assignment,
+                                                    enabled: e.target.checked,
+                                                    readerId: e.target.checked
+                                                      ? (selectedReaderIds.length === 1 ? selectedReaderIds[0] : assignment.readerId)
+                                                      : ''
+                                                  }
+                                                : assignment
+                                             ));
+                                            }}
+                                            className="accent-accent-primary"
+                                           />
+                                           Assigner
+                                         </label>
+                                        </div>
 
-                                   {isEnabled && (
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                                      <div className="space-y-1">
-                                       <label className="text-xs font-bold text-text-secondary uppercase tracking-widest">Lecteur assigné</label>
-                                       <select
-                                        className={cn(
-                                          "w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary light:text-slate-900 text-text-primary dark:text-white",
-                                          selectedReaderIds.length === 1 && "opacity-70 cursor-not-allowed bg-bg-surface"
+                                        {isEnabled && (
+                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                           <div className="space-y-1">
+                                            <label className="text-xs font-bold text-text-secondary uppercase tracking-widest">Lecteur assigné</label>
+                                            <select
+                                             className={cn(
+                                               "w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary light:text-slate-900 text-text-primary dark:text-white",
+                                               selectedReaderIds.length === 1 && "opacity-70 cursor-not-allowed bg-bg-surface"
+                                             )}
+                                             value={draft?.readerId || ''}
+                                             title="Lecteur assigné"
+                                             aria-label="Lecteur assigné"
+                                             disabled={selectedReaderIds.length === 1}
+                                             onChange={(e) => {
+                                               const value = e.target.value;
+                                               setAgentAssignments((prev) => prev.map((assignment) =>
+                                                assignment.agentId === agent.id ? { ...assignment, readerId: value } : assignment
+                                               ));
+                                             }}
+                                            >
+                                             <option value="">Sélectionner un lecteur</option>
+                                             {readers
+                                               .filter((reader) => selectedReaderIds.includes(reader.id))
+                                               .map((reader) => (
+                                                <option key={reader.id} value={reader.id}>{reader.label}</option>
+                                               ))}
+                                            </select>
+                                           </div>
+
+                                           <div className="space-y-1">
+                                            <label className="text-xs font-bold text-text-secondary uppercase tracking-widest">Debut</label>
+                                            <input
+                                             type="time"
+                                             className="w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary"
+                                             value={draft?.shiftStart || '08:00'}
+                                             title="Heure de début"
+                                             aria-label="Heure de début"
+                                             onChange={(e) => {
+                                               const value = e.target.value;
+                                               setAgentAssignments((prev) => prev.map((assignment) =>
+                                                assignment.agentId === agent.id ? { ...assignment, shiftStart: value } : assignment
+                                               ));
+                                             }}
+                                            />
+                                           </div>
+
+                                           <div className="space-y-1">
+                                            <label className="text-xs font-bold text-text-secondary uppercase tracking-widest">Fin</label>
+                                            <input
+                                             type="time"
+                                             className="w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary"
+                                             value={draft?.shiftEnd || '16:00'}
+                                             title="Heure de fin"
+                                             aria-label="Heure de fin"
+                                             onChange={(e) => {
+                                               const value = e.target.value;
+                                               setAgentAssignments((prev) => prev.map((assignment) =>
+                                                assignment.agentId === agent.id ? { ...assignment, shiftEnd: value } : assignment
+                                               ));
+                                             }}
+                                            />
+                                           </div>
+
+                                           <div className="space-y-1">
+                                            <label className="text-xs font-bold text-text-secondary uppercase tracking-widest">Statut</label>
+                                            <select
+                                             className="w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary light:text-slate-900 text-text-primary dark:text-white"
+                                             value={draft?.status || 'OFFLINE'}
+                                             title="Statut de l'agent"
+                                             aria-label="Statut de l'agent"
+                                             onChange={(e) => {
+                                               const value = e.target.value as 'ACTIVE' | 'OFFLINE';
+                                               setAgentAssignments((prev) => prev.map((assignment) =>
+                                                assignment.agentId === agent.id ? { ...assignment, status: value } : assignment
+                                               ));
+                                             }}
+                                            >
+                                             <option value="OFFLINE">Repos</option>
+                                             <option value="ACTIVE">Actif</option>
+                                            </select>
+                                           </div>
+                                         </div>
                                         )}
-                                        value={draft?.readerId || ''}
-                                        title="Lecteur assigné"
-                                        aria-label="Lecteur assigné"
-                                        disabled={selectedReaderIds.length === 1}
-                                        onChange={(e) => {
-                                          const value = e.target.value;
-                                          setAgentAssignments((prev) => prev.map((assignment) =>
-                                           assignment.agentId === agent.id ? { ...assignment, readerId: value } : assignment
-                                          ));
-                                        }}
-                                       >
-                                        <option value="">Sélectionner un lecteur</option>
-                                        {readers
-                                          .filter((reader) => selectedReaderIds.includes(reader.id))
-                                          .map((reader) => (
-                                           <option key={reader.id} value={reader.id}>{reader.label}</option>
-                                          ))}
-                                       </select>
-                                      </div>
-
-                                      <div className="space-y-1">
-                                       <label className="text-xs font-bold text-text-secondary uppercase tracking-widest">Debut</label>
-                                       <input
-                                        type="time"
-                                        className="w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary"
-                                        value={draft?.shiftStart || '08:00'}
-                                        title="Heure de début"
-                                        aria-label="Heure de début"
-                                        onChange={(e) => {
-                                          const value = e.target.value;
-                                          setAgentAssignments((prev) => prev.map((assignment) =>
-                                           assignment.agentId === agent.id ? { ...assignment, shiftStart: value } : assignment
-                                          ));
-                                        }}
-                                       />
-                                      </div>
-
-                                      <div className="space-y-1">
-                                       <label className="text-xs font-bold text-text-secondary uppercase tracking-widest">Fin</label>
-                                       <input
-                                        type="time"
-                                        className="w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary"
-                                        value={draft?.shiftEnd || '16:00'}
-                                        title="Heure de fin"
-                                        aria-label="Heure de fin"
-                                        onChange={(e) => {
-                                          const value = e.target.value;
-                                          setAgentAssignments((prev) => prev.map((assignment) =>
-                                           assignment.agentId === agent.id ? { ...assignment, shiftEnd: value } : assignment
-                                          ));
-                                        }}
-                                       />
-                                      </div>
-
-                                      <div className="space-y-1">
-                                       <label className="text-xs font-bold text-text-secondary uppercase tracking-widest">Statut</label>
-                                       <select
-                                        className="w-full bg-bg-secondary border-border border rounded-xl py-2.5 px-3 outline-none focus:border-accent-primary light:text-slate-900 text-text-primary dark:text-white"
-                                        value={draft?.status || 'OFFLINE'}
-                                        title="Statut de l'agent"
-                                        aria-label="Statut de l'agent"
-                                        onChange={(e) => {
-                                          const value = e.target.value as 'ACTIVE' | 'OFFLINE';
-                                          setAgentAssignments((prev) => prev.map((assignment) =>
-                                           assignment.agentId === agent.id ? { ...assignment, status: value } : assignment
-                                          ));
-                                        }}
-                                       >
-                                        <option value="OFFLINE">Repos</option>
-                                        <option value="ACTIVE">Actif</option>
-                                       </select>
-                                      </div>
-                                    </div>
-                                   )}
-                                  </div>
-                                 );
-                                })
-                              )}
-                            </div>
-                            );
-                           })()}
+                                       </div>
+                                     );
+                                   })
+                               )}
+                             </div>
+                           )}
                           </motion.div>
                         )}
                       </AnimatePresence>
