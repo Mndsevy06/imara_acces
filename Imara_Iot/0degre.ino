@@ -11,7 +11,7 @@
 const char* ssid = "STARLINK2";
 const char* password = "DOOT1KAYs";
 // L'URL du backend (Fixée définitivement grâce à votre configuration réseau)
-const String backendBaseUrl = "http://192.168.43.5:8012";
+const String backendBaseUrl = "http://192.168.1.207:8012";
 
 String readerId = ""; // Sera initialisé avec l'adresse MAC
 
@@ -88,8 +88,12 @@ void setup() {
   ESP32PWM::allocateTimer(2);
   ESP32PWM::allocateTimer(3);
   barrierServo.setPeriodHertz(50);
-  barrierServo.write(ANGLE_CLOSED); 
-  barrierServo.attach(SERVO_PIN, 500, 2400); 
+  // Forcer la position fermée (500µs = 0°) AVANT l'attachement pour éviter
+  // que le servo parte en position aléatoire au démarrage
+  barrierServo.attach(SERVO_PIN, 500, 2400);
+  barrierServo.writeMicroseconds(500); // Force 0° immédiatement après attachement
+  delay(500);                          // Laisser le temps au servo d'atteindre 0°
+  barrierServo.write(ANGLE_CLOSED);    // Confirmer la position fermée
 
   SPI.begin(); 
   rfid.PCD_Init();
